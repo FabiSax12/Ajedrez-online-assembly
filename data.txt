@@ -1,1 +1,12 @@
-190278301923
+0,as,ds
+1,as,xf
+0,js,kl
+1,tu,si
+0,sd,jy
+1,jg,ud
+0,bh,ko
+1,nh,sd
+0,ad,po
+1,hg,lk
+0,qw,er
+1,io,cd

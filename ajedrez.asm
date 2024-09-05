@@ -3,7 +3,7 @@ include Macros.inc
 
 .data
 	; IU Components
-	letterCoords db		"     A    B    C    D    E    F    G    H  ", 10, 13,0
+	letterCoords db		"  A    B    C    D    E    F    G    H  ", 10, 13,0
 	boardRowBlack db    "* * *     * * *     * * *     * * *     ", 10, 13,
 						"* * *     * * *     * * *     * * *     ", 10, 13,
 						"* * *     * * *     * * *     * * *     ", 10, 13, 0
@@ -61,6 +61,9 @@ main proc
 			inc ecx
 			cmp ecx, 9
 			jl 	printBoardRowsLoop
+
+		lea edx, letterCoords
+		call writestring
 
 		mov dl, "T"
 		mov ah, "A"

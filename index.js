@@ -2,10 +2,7 @@ import fs from "node:fs"
 import { createClient } from "@supabase/supabase-js"
 
 const URL = "https://zeycferumtubqlaqjsax.supabase.co"
-const API_KEY = `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9
-  .eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpleWNmZXJ1bXR1YnFsYXFqc2F4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjQzODc0MDMsImV4cCI6MjAzOTk2MzQwM30
-  .yre44KeowpW7fHu - kJfGlYnEVlPKZ9sZgUooZucl7WU
-`
+const API_KEY = `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpleWNmZXJ1bXR1YnFsYXFqc2F4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjQzODc0MDMsImV4cCI6MjAzOTk2MzQwM30.yre44KeowpW7fHu-kJfGlYnEVlPKZ9sZgUooZucl7WU`
 
 class SupabaseService {
   endpoint = "https://zeycferumtubqlaqjsax.supabase.co/storage/v1/object/games"
@@ -13,6 +10,7 @@ class SupabaseService {
   constructor() {
     this.supabase = createClient(URL, API_KEY)
     this.storage = this.supabase.storage.from("games")
+    this.database = this.supabase;
   }
 
   async createDataFile(fileName, content) {
