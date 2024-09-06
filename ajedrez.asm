@@ -2,6 +2,14 @@ include irvine32.inc
 include Macros.inc
 
 .data
+	; Cloud Online Sync
+	cloudScript db "node index2.js"
+
+	fileHandle handle ?
+	fileName byte "data.txt", 0			; Nombre del archivo de entrada
+    buffer byte 256 DUP(?)				; Buffer para leer el archivo
+    bytesRead dword ?					; Para almacenar los bytes leídos
+
 	; IU Components
 	letterCoords db		"  A    B    C    D    E    F    G    H  ", 10, 13,0
 	boardRowBlack db    "* * *     * * *     * * *     * * *     ", 10, 13,
@@ -38,67 +46,13 @@ main proc
 	;;lea edx, letterCoords
 	;;call writestring
 
-	mov ecx, 1
-	printBoardRowsLoop:
-		mov eax, ecx
-		;;call writeint
-		
-		mov bl, 2
-		div bl
-		cmp ah, 0
-		je isWhiteCell
-		jne isBlackCell
-
-		isWhiteCell: 
-			lea edx, boardRowWhite
-			jmp printCell
-		isBlackCell: 
-			lea edx, boardRowBlack
-			jmp printCell
-
-		printCell:
-			call writestring
-			inc ecx
-			cmp ecx, 9
-			jl 	printBoardRowsLoop
-
-		lea edx, letterCoords
-		call writestring
-
-		mov dl, "T"
-		mov ah, "A"
-		mov al, 1
-		call printCharacter
-		mov dl, "C"
-		mov ah, "B"
-		mov al, 1
-		call printCharacter
-		mov dl, "A"
-		mov ah, "C"
-		mov al, 1
-		call printCharacter
-		mov dl, "K"
-		mov ah, "D"
-		mov al, 1
-		call printCharacter
-		mov dl, "Q"
-		mov ah, "E"
-		mov al, 1
-		call printCharacter
-		mov dl, "A"
-		mov ah, "F"
-		mov al, 1
-		call printCharacter
-		mov dl, "C"
-		mov ah, "G"
-		mov al, 1
-		call printCharacter
-		mov dl, "T"
-		mov ah, "H"
-		mov al, 1
-		call printCharacter
-
-mGotoxy 0, 25
+	call printInitialBoard
+	call readDataFile
+	mGotoxy 0, 27
+	mov edx, offset buffer
+	call writestring
+	
+mGotoxy 0, 30
 exit
 main endp
 
@@ -185,5 +139,193 @@ calcCellCenterCoords proc
 
     ret
 calcCellCenterCoords endp
+
+readDataFile proc
+
+	; Abrir el archivo de entrada
+    mov edx, OFFSET fileName
+    call OpenInputFile
+	mov fileHandle, eax
+    jc fileError                ; Si hay un error, salta a la etiqueta fileError
+
+    ; Leer el contenido del archivo
+    mov edx, OFFSET buffer      ; Almacenar datos leídos en el buffer
+    mov ecx, SIZEOF buffer      ; Máximo tamaño a leer
+    call ReadFromFile
+    jc fileError                ; Si hay un error, salta a la etiqueta fileError
+    mov bytesRead, eax          ; Guardar el número de bytes leídos
+
+    ; Cerrar el archivo de entrada
+	mov eax, fileHandle
+    call CloseFile
+
+	fileError:
+
+	ret
+readDataFile endp
+
+printInitialBoard proc
+
+mov ecx, 1
+	printBoardRowsLoop:
+		mov eax, ecx
+		;;call writeint
+		
+		mov bl, 2
+		div bl
+		cmp ah, 0
+		je isWhiteCell
+		jne isBlackCell
+
+		isWhiteCell: 
+			lea edx, boardRowWhite
+			jmp printCell
+		isBlackCell: 
+			lea edx, boardRowBlack
+			jmp printCell
+
+		printCell:
+			call writestring
+			inc ecx
+			cmp ecx, 9
+			jl 	printBoardRowsLoop
+
+		lea edx, letterCoords
+		call writestring
+
+		; Lado negro
+		mov dl, "T"
+		mov ah, "A"
+		mov al, 1
+		call printCharacter
+		mov dl, "C"
+		mov ah, "B"
+		mov al, 1
+		call printCharacter
+		mov dl, "A"
+		mov ah, "C"
+		mov al, 1
+		call printCharacter
+		mov dl, "K"
+		mov ah, "D"
+		mov al, 1
+		call printCharacter
+		mov dl, "Q"
+		mov ah, "E"
+		mov al, 1
+		call printCharacter
+		mov dl, "A"
+		mov ah, "F"
+		mov al, 1
+		call printCharacter
+		mov dl, "C"
+		mov ah, "G"
+		mov al, 1
+		call printCharacter
+		mov dl, "T"
+		mov ah, "H"
+		mov al, 1
+		call printCharacter
+		mov dl, "P"
+		mov ah, "A"
+		mov al, 2
+		call printCharacter
+		mov dl, "P"
+		mov ah, "B"
+		mov al, 2
+		call printCharacter
+		mov dl, "P"
+		mov ah, "C"
+		mov al, 2
+		call printCharacter
+		mov dl, "P"
+		mov ah, "D"
+		mov al, 2
+		call printCharacter
+		mov dl, "P"
+		mov ah, "E"
+		mov al, 2
+		call printCharacter
+		mov dl, "P"
+		mov ah, "F"
+		mov al, 2
+		call printCharacter
+		mov dl, "P"
+		mov ah, "G"
+		mov al, 2
+		call printCharacter
+		mov dl, "P"
+		mov ah, "H"
+		mov al, 2
+		call printCharacter
+
+		; Lado blanco
+		mov dl, "t"
+		mov ah, "A"
+		mov al, 8
+		call printCharacter
+		mov dl, "c"
+		mov ah, "B"
+		mov al, 8
+		call printCharacter
+		mov dl, "a"
+		mov ah, "C"
+		mov al, 8
+		call printCharacter
+		mov dl, "k"
+		mov ah, "D"
+		mov al, 8
+		call printCharacter
+		mov dl, "q"
+		mov ah, "E"
+		mov al, 8
+		call printCharacter
+		mov dl, "a"
+		mov ah, "F"
+		mov al, 8
+		call printCharacter
+		mov dl, "c"
+		mov ah, "G"
+		mov al, 8
+		call printCharacter
+		mov dl, "t"
+		mov ah, "H"
+		mov al, 8
+		call printCharacter
+		mov dl, "p"
+		mov ah, "A"
+		mov al, 7
+		call printCharacter
+		mov dl, "p"
+		mov ah, "B"
+		mov al, 7
+		call printCharacter
+		mov dl, "p"
+		mov ah, "C"
+		mov al, 7
+		call printCharacter
+		mov dl, "p"
+		mov ah, "D"
+		mov al, 7
+		call printCharacter
+		mov dl, "p"
+		mov ah, "E"
+		mov al, 7
+		call printCharacter
+		mov dl, "p"
+		mov ah, "F"
+		mov al, 7
+		call printCharacter
+		mov dl, "p"
+		mov ah, "G"
+		mov al, 7
+		call printCharacter
+		mov dl, "p"
+		mov ah, "H"
+		mov al, 7
+		call printCharacter
+
+		ret
+printInitialBoard endp
 
 end main

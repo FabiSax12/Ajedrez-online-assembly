@@ -102,6 +102,8 @@ class DataFile {
   }
 
   async append(line) {
+    const lastChar = fs.readFileSync(this.fileName, "utf-8").slice(-1);
+    if (lastChar !== "\n") line = "\n" + line;
     await fs.promises.appendFile(this.fileName, line + "\n", "utf-8");
     this.lines++;
   }
@@ -119,7 +121,7 @@ class DataFile {
       await supabaseService.insertData(dbRow);
       isMyTurn = false;
     }
-    this.lines += newLines.length;
+    // this.lines += newLines.length;
   }
 }
 
@@ -182,7 +184,7 @@ async function main() {
   console.log("Sincronización completada.");
 
   const lastLine = await dataFile.readLastLine();
-  isMyTurn = !lastLine || lastLine[0] === "1";
+  isMyTurn = !lastLine || lastLine[0] === "0";
 
   setInterval(async () => {
     try {
