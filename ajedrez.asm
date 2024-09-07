@@ -11,6 +11,11 @@ include Macros.inc
     bytesRead dword ?					; Para almacenar los bytes leídos
 
 	; IU Components
+	blackPieces db "TCAKQACT"         ; Piezas principales negras
+    whitePieces db "tcakqact"         ; Piezas principales blancas
+    columns db "ABCDEFGH"             ; Columnas del tablero
+    blackPawn db "P"                  ; Peón negro
+    whitePawn db "p"                  ; Peón blanco
 	letterCoords db		"  A    B    C    D    E    F    G    H  ", 10, 13,0
 	boardRowBlack db    "* * *     * * *     * * *     * * *     ", 10, 13,
 						"* * *     * * *     * * *     * * *     ", 10, 13,
@@ -47,10 +52,17 @@ main proc
 	;;call writestring
 
 	call printInitialBoard
+
+	mov ecx, 27
+	readingLoop:
 	call readDataFile
-	mGotoxy 0, 27
+    mGotoxy 0, 25
 	mov edx, offset buffer
 	call writestring
+
+	mov eax, 1000
+	call Delay
+	jmp readingLoop
 	
 mGotoxy 0, 30
 exit
@@ -193,139 +205,59 @@ mov ecx, 1
 		lea edx, letterCoords
 		call writestring
 
-		; Lado negro
-		mov dl, "T"
-		mov ah, "A"
-		mov al, 1
-		call printCharacter
-		mov dl, "C"
-		mov ah, "B"
-		mov al, 1
-		call printCharacter
-		mov dl, "A"
-		mov ah, "C"
-		mov al, 1
-		call printCharacter
-		mov dl, "K"
-		mov ah, "D"
-		mov al, 1
-		call printCharacter
-		mov dl, "Q"
-		mov ah, "E"
-		mov al, 1
-		call printCharacter
-		mov dl, "A"
-		mov ah, "F"
-		mov al, 1
-		call printCharacter
-		mov dl, "C"
-		mov ah, "G"
-		mov al, 1
-		call printCharacter
-		mov dl, "T"
-		mov ah, "H"
-		mov al, 1
-		call printCharacter
-		mov dl, "P"
-		mov ah, "A"
-		mov al, 2
-		call printCharacter
-		mov dl, "P"
-		mov ah, "B"
-		mov al, 2
-		call printCharacter
-		mov dl, "P"
-		mov ah, "C"
-		mov al, 2
-		call printCharacter
-		mov dl, "P"
-		mov ah, "D"
-		mov al, 2
-		call printCharacter
-		mov dl, "P"
-		mov ah, "E"
-		mov al, 2
-		call printCharacter
-		mov dl, "P"
-		mov ah, "F"
-		mov al, 2
-		call printCharacter
-		mov dl, "P"
-		mov ah, "G"
-		mov al, 2
-		call printCharacter
-		mov dl, "P"
-		mov ah, "H"
-		mov al, 2
-		call printCharacter
+		; Lado negro - piezas principales
+		mov ecx, 8                        ; 8 piezas principales
+		mov esi, OFFSET blackPieces        ; Dirección de las piezas negras
+		mov edi, OFFSET columns            ; Dirección de las columnas
 
-		; Lado blanco
-		mov dl, "t"
-		mov ah, "A"
-		mov al, 8
-		call printCharacter
-		mov dl, "c"
-		mov ah, "B"
-		mov al, 8
-		call printCharacter
-		mov dl, "a"
-		mov ah, "C"
-		mov al, 8
-		call printCharacter
-		mov dl, "k"
-		mov ah, "D"
-		mov al, 8
-		call printCharacter
-		mov dl, "q"
-		mov ah, "E"
-		mov al, 8
-		call printCharacter
-		mov dl, "a"
-		mov ah, "F"
-		mov al, 8
-		call printCharacter
-		mov dl, "c"
-		mov ah, "G"
-		mov al, 8
-		call printCharacter
-		mov dl, "t"
-		mov ah, "H"
-		mov al, 8
-		call printCharacter
-		mov dl, "p"
-		mov ah, "A"
-		mov al, 7
-		call printCharacter
-		mov dl, "p"
-		mov ah, "B"
-		mov al, 7
-		call printCharacter
-		mov dl, "p"
-		mov ah, "C"
-		mov al, 7
-		call printCharacter
-		mov dl, "p"
-		mov ah, "D"
-		mov al, 7
-		call printCharacter
-		mov dl, "p"
-		mov ah, "E"
-		mov al, 7
-		call printCharacter
-		mov dl, "p"
-		mov ah, "F"
-		mov al, 7
-		call printCharacter
-		mov dl, "p"
-		mov ah, "G"
-		mov al, 7
-		call printCharacter
-		mov dl, "p"
-		mov ah, "H"
-		mov al, 7
-		call printCharacter
+		BlackLoop:
+			mov dl, [esi]                      ; Cargar pieza negra
+			mov ah, [edi]                      ; Cargar columna
+			mov al, 1                          ; Fila 1
+			call printCharacter                ; Imprimir pieza en columna y fila
+			inc esi                            ; Siguiente pieza
+			inc edi                            ; Siguiente columna
+			loop BlackLoop
 
-		ret
+			; Lado negro - peones
+			mov ecx, 8                         ; 8 peones negros
+			mov edi, OFFSET columns            ; Repetimos las columnas
+
+		BlackPawnsLoop:
+			mov dl, blackPawn                  ; Peón negro
+			mov ah, [edi]                      ; Cargar columna
+			mov al, 2                          ; Fila 2
+			call printCharacter                ; Imprimir peón en columna y fila
+			inc edi                            ; Siguiente columna
+			loop BlackPawnsLoop
+
+			; Lado blanco - piezas principales
+			mov ecx, 8                         ; 8 piezas principales
+			mov esi, OFFSET whitePieces        ; Dirección de las piezas blancas
+			mov edi, OFFSET columns            ; Dirección de las columnas
+
+		WhiteLoop:
+			mov dl, [esi]                      ; Cargar pieza blanca
+			mov ah, [edi]                      ; Cargar columna
+			mov al, 8                          ; Fila 8
+			call printCharacter                ; Imprimir pieza en columna y fila
+			inc esi                            ; Siguiente pieza
+			inc edi                            ; Siguiente columna
+			loop WhiteLoop
+
+			; Lado blanco - peones
+			mov ecx, 8                         ; 8 peones blancos
+			mov edi, OFFSET columns            ; Repetimos las columnas
+
+		WhitePawnsLoop:
+			mov dl, whitePawn                  ; Peón blanco
+			mov ah, [edi]                      ; Cargar columna
+			mov al, 7                          ; Fila 7
+			call printCharacter                ; Imprimir peón en columna y fila
+			inc edi                            ; Siguiente columna
+			loop WhitePawnsLoop
+
+	ret
 printInitialBoard endp
 
 end main
