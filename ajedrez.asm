@@ -11,7 +11,7 @@ include Macros.inc
     bytesRead dword ?					; Para almacenar los bytes leídos
 
 	; IU Components
-	letterCoords db		"  A    B    C    D    E    F    G    H  ", 10, 13,0
+	letterCoords db		"________________________________________",10,"  A    B    C    D    E    F    G    H  ", 10, 13,0
 	boardRowBlack db    "* * *     * * *     * * *     * * *     ", 10, 13,
 						"* * *     * * *     * * *     * * *     ", 10, 13,
 						"* * *     * * *     * * *     * * *     ", 10, 13, 0
@@ -35,26 +35,131 @@ include Macros.inc
 				byte  "*", "*", "*", "*", "*", "*", "*", "*"  ; Fila 6 - Vacío (A6 a H6)
 				byte  "p", "p", "p", "p", "p", "p", "p", "p"  ; Fila 7 - Peones blancos (A7 a H7)
 				byte  "r", "n", "b", "q", "k", "b", "n", "r", 0   ; Fila 8 - Blancas (A8 a H8)
-
 	; Position Vars
 	selectedCellX byte ?
 	selectedCellY byte ?
 	selectedCellIndex byte ?
+	lastX db ?
+	lastY db ?
+
+    BufferInfo CONSOLE_SCREEN_BUFFER_INFO <> ;estructura de la Api de Windows para almacenar las coordenadas del cuirsor en x,y {1}(código extraído de "https://stackoverflow.com/questions/50589401/how-to-get-current-cursor-position-in-masm")
+
+	;Error messages
+	badPrompt db "Valor incorrecto, intenta de nuevo!",0
 
 .code
 main proc
-	;;lea edx, letterCoords
-	;;call writestring
-
 	call printInitialBoard
+	call printSidebar
 	call readDataFile
-	mGotoxy 0, 27
-	mov edx, offset buffer
-	call writestring
-	
-mGotoxy 0, 30
+	;mGotoxy 0, 27
+	;mov edx, offset buffer
+	;call writestring
+	call menu
+	mGotoxy 0,25
+
 exit
 main endp
+
+menu proc
+	mGotoxy 60,3
+	mwrite "Que desea hacer?" 
+	mGotoxy 60,4 
+	mwrite "1.Mover ficha"
+	mGotoxy 60,5 
+	mwrite "2.Salir"
+	mgotoxy 60,6
+	mwrite "Opcion: "
+	read:
+		call ReadDec
+		mgotoxy 60,7
+		jo  wrongInput
+		cmp eax,1
+		je  movePiece
+		jmp endMenu
+		wrongInput:
+			mov  edx,OFFSET badPrompt
+			call WriteString
+			mgotoxy 68,6
+			mwritespace 100
+			mgotoxy 68,6
+			jmp  read        ;tipo de dato incorrecto
+        movePiece:
+			mov eax,60	
+			call clearColumn
+			mGotoxy 60,3
+			mwrite "Cual ficha deseas mover?"
+			mGotoxy 60,4
+			mwrite "1)Torre"
+			mGotoxy 60,5
+			mwrite "2)Caballo"
+			mGotoxy 60,6
+			mwrite "3)Alfil"
+			mGotoxy 75,4
+			mwrite "4)Reina"
+			mGotoxy 75,5
+			mwrite "5)Rey"
+			mGotoxy 75,6
+			mwrite "6)Peones"
+			mGotoxy 60,7
+			mwrite "Opcion: "
+			readPiece:
+				call ReadDec
+				mgotoxy 60,8
+				jo  wrongInputPiece
+				cmp eax,1
+				je  moveRook
+				cmp eax,2
+				je  moveKnight
+				cmp eax,3
+				je  moveBishop
+				cmp eax,4
+				je  moveQueen
+				cmp eax,5
+				je  moveKing
+				cmp eax,6
+				je  movePawn
+				jmp endMenu
+				wrongInputPiece:
+					mov  edx,OFFSET badPrompt
+					call WriteString
+					mgotoxy 68,7
+					mwritespace 100
+					mgotoxy 68,7
+					jmp  readPiece        ;tipo de dato incorrecto
+				moveRook:
+				moveKnight:
+				moveBishop:
+				moveQueen:
+				moveKing:
+				movePawn:
+	endMenu:
+	ret
+menu endp
+
+clearColumn proc			;Recibe por parametro la columna a limpiar en eax, el valor Y ira por defecto de 0 a 30
+	mov ecx, 0
+	clearColumnLoop:
+		mGotoxy al,cl
+		mwritespace 30
+		inc ecx
+		cmp ecx, 30
+		jl clearColumnLoop
+	ret
+clearColumn endp
+
+getXY PROC ;Obtiene la posición actual del cursor en la consola {1}
+    invoke GetStdHandle, STD_OUTPUT_HANDLE						 ; Invoca la función GetStdHandle para obtener el manejador de la consola de salida estándar (STD_OUTPUT_HANDLE)
+    invoke GetConsoleScreenBufferInfo, eax, ADDR BufferInfo      ; Invoca la función GetConsoleScreenBufferInfo para obtener información sobre el búfer de pantalla de la consola.
+    movzx eax, BufferInfo.dwCursorPosition.X					 ; Obtiene la coordenada X (columna) de la posición del cursor desde la estructura BufferInfo.
+	mov lastX, al
+    ;call WriteInt
+    movzx eax, BufferInfo.dwCursorPosition.Y					 ; Obtiene la coordenada Y (fila) de la posición del cursor desde la estructura BufferInfo.	
+	mov lastY, al
+	ret
+getXY ENDP
+
+
 
 printCharacter proc
 	; Args:
@@ -78,7 +183,6 @@ printCharacter proc
 	call writechar
 
 	ret
-
 printCharacter endp
 
 calcCellIndex proc
@@ -100,7 +204,6 @@ calcCellIndex proc
 	add al, dh        ; al = col + row * 8
 
 	mov selectedCellIndex, al
-
 	ret
 calcCellIndex endp
 
@@ -141,7 +244,6 @@ calcCellCenterCoords proc
 calcCellCenterCoords endp
 
 readDataFile proc
-
 	; Abrir el archivo de entrada
     mov edx, OFFSET fileName
     call OpenInputFile
@@ -164,8 +266,36 @@ readDataFile proc
 	ret
 readDataFile endp
 
-printInitialBoard proc
+printSidebar proc
+	pusha
+	xor edx,edx
+	xor ecx,ecx
+	xor ebx,ebx
+	mov cl,0
+	mov edx,0
+	mov ch,2
+	loopSidebar:
+		xor eax,eax
+		mgotoxy 41,cl
+		mwrite "|"
+		mov al,ch
+		mov bl,3
+		div bl
+		cmp ah,0
+		jne nextSidebar
+		movzx eax,al
+		call writeDec
 
+		nextSidebar:
+			inc cl
+			inc ch
+			cmp cl,24
+		jl loopSidebar
+		popa
+	ret
+printSidebar endp
+
+printInitialBoard proc ;Imprime el tablero de ajedrez en la consola
 mov ecx, 1
 	printBoardRowsLoop:
 		mov eax, ecx
@@ -174,8 +304,8 @@ mov ecx, 1
 		mov bl, 2
 		div bl
 		cmp ah, 0
-		je isWhiteCell
-		jne isBlackCell
+		je isBlackCell
+		jne isWhiteCell
 
 		isWhiteCell: 
 			lea edx, boardRowWhite
