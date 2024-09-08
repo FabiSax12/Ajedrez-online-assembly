@@ -31,7 +31,7 @@ include Macros.inc
 				byte  "P", "P", "P", "P", "P", "P", "P", "P"  ; Fila 2 - Peones negros (A2 a H2)
 				byte  "*", "*", "*", "*", "*", "*", "*", "*"  ; Fila 3 - Vacío (A3 a H3)
 				byte  "*", "*", "*", "*", "*", "*", "*", "*"  ; Fila 4 - Vacío (A4 a H4)
-				byte  "*", "*", "*", "F", "*", "*", "*", "*"  ; Fila 5 - Vacío (A5 a H5)
+				byte  "*", "*", "*", "*", "*", "*", "*", "*"  ; Fila 5 - Vacío (A5 a H5)
 				byte  "*", "*", "*", "*", "*", "*", "*", "*"  ; Fila 6 - Vacío (A6 a H6)
 				byte  "p", "p", "p", "p", "p", "p", "p", "p"  ; Fila 7 - Peones blancos (A7 a H7)
 				byte  "r", "n", "b", "q", "k", "b", "n", "r", 0   ; Fila 8 - Blancas (A8 a H8)
@@ -41,9 +41,10 @@ include Macros.inc
 	selectedCellIndex byte ?
 	lastX db ?
 	lastY db ?
-	backup dd 0 ; en caso de necesitar repaldar un registro
-	i db 0
-	j db 0
+	strInput db 3 dup(0)
+	currentPosition db 3 dup(0)
+	newPosition db 3 dup (0)
+	chessPiece db "*"
 
     BufferInfo CONSOLE_SCREEN_BUFFER_INFO <> ;estructura de la Api de Windows para almacenar las coordenadas del cuirsor en x,y {1}(código extraído de "https://stackoverflow.com/questions/50589401/how-to-get-current-cursor-position-in-masm")
 
@@ -51,6 +52,22 @@ include Macros.inc
 	badPrompt db "Valor incorrecto, intenta de nuevo!",0
 
 .code
+;MACROS
+
+
+suma MACRO arg1,arg2 ;suma al argmento 1 el valor del argumento 2
+	add arg1,arg2
+ENDM
+
+savePosition MACRO arg1 ;Guarda la posición actual en la variable currentPosition
+	 mov edi, OFFSET strInput    ; Cargar la dirección de strInput en EDI
+    mov al, [edi]               ; Cargar el primer byte de strInput en AL
+    mov arg1[0], al             ; Guardar el primer byte en arg1[0]
+    mov al, [edi+1]             ; Cargar el segundo byte de strInput en AL
+    mov arg1[1], al             ; Guardar el segundo byte en arg1[1]
+ENDM
+
+
 main proc
 	call printInitialBoard
 	call printSidebar
@@ -65,68 +82,130 @@ exit
 main endp
 
 menu proc
-	mGotoxy 60,3
-	mwrite "Que desea hacer?" 
-	mGotoxy 60,4 
-	mwrite "1.Mover ficha"
-	mGotoxy 60,5 
-	mwrite "2.Salir"
-	mgotoxy 60,6
-	mwrite "Opcion: "
-	read:
-		call ReadDec
-		mgotoxy 60,7
-		jo  wrongInput
-		cmp eax,1
-		je  movePiece
-		jmp endMenu
-		wrongInput:
-			mov  edx,OFFSET badPrompt
-			call WriteString
-			mgotoxy 68,6
-			mwritespace 100
-			mgotoxy 68,6
-			jmp  read        ;tipo de dato incorrecto
-        movePiece:
-			mov eax,60	
-			call clearColumn
-			mGotoxy 60,3
-			mwrite "Posición de la ficha:"
-			mGotoxy 60,4
-			mwrite "Nueva posición:"
-			readPiece:
-				call ReadDec
-				mgotoxy 60,8
-				jo  wrongInputPiece
-				cmp eax,1
-				je  moveRook
-				cmp eax,2
-				je  moveKnight
-				cmp eax,3
-				je  moveBishop
-				cmp eax,4
-				je  moveQueen
-				cmp eax,5
-				je  moveKing
-				cmp eax,6
-				je  movePawn
-				jmp endMenu
-				wrongInputPiece:
-					mov  edx,OFFSET badPrompt
-					call WriteString
-					mgotoxy 68,7
-					mwritespace 100
-					mgotoxy 68,7
-					jmp  readPiece        ;tipo de dato incorrecto
-				moveRook:
-				moveKnight:
-				moveBishop:
-				moveQueen:
-				moveKing:
-				movePawn:
-	endMenu:
-	ret
+	initMenu:
+		mGotoxy 60,3
+		mwrite "Que desea hacer?" 
+		mGotoxy 60,4 
+		mwrite "1.Mover ficha"
+		mGotoxy 60,5 
+		mwrite "2.Salir"
+		mgotoxy 60,6
+		mwrite "Opcion: "
+		read:
+			call ReadDec
+			mgotoxy 60,7
+			jo  wrongInput
+			cmp eax,1
+			je  movePiece
+			jmp endMenu
+			wrongInput:
+				mov  edx,OFFSET badPrompt
+				call WriteString
+				mgotoxy 68,6
+				mwritespace 100
+				mgotoxy 68,6
+				jmp  read        ;tipo de dato incorrecto
+			movePiece:			 ;En este apartado se solicita el ingreso de la posición actual de la ficha
+				mov eax,60	
+				call clearColumn
+				mGotoxy 60,3
+				mwrite "Posición de la ficha:"
+				call getPiecePosition
+				savePosition [currentPosition]
+				mGotoxy 60,4
+				mwrite "Nueva posición:"
+				call getPiecePosition
+				savePosition [newPosition]
+				call movePieceProcess
+				jmp initMenu
+		endMenu:
+			ret
 menu endp
+
+movePieceProcess proc
+	;mov edx,OFFSET currentPosition
+	;call writeString
+	;mov edx,OFFSET newPosition
+	;call writeString
+	mov ah,currentPosition[0]	;se obtiene la columna de la posición actual (A-F)
+	mov al,currentPosition[1]   ;se obtiene la fila de la posición actual (1-8)
+	sub al,30h					;se convierte el valor de la fila a un valor numérico
+	call calcCellIndex			;se calcula el índice de la celda
+	movzx edi,selectedCellIndex	;indice de partida almacenado en edi
+	
+	mov ah,newPosition[0]		;se obtiene la columna de la nueva posición (A-F)
+	mov al,newPosition[1]		;se obtiene la fila de la nueva posición (1-8)
+	sub al,30h					;se convierte el valor de la fila a un valor numérico
+	call calcCellIndex          ;se calcula el índice de la celda
+	movzx esi,selectedCellIndex	;indice de destino almacenado en esi
+
+	mov al,chessBoard[edi]		;se obtiene el valor de la celda de partida
+	mov chessPiece,al			;se guarda el valor de la celda de partida en la variable chessPiece
+	mov chessBoard[edi],"*"		;se limpia la celda de partida
+
+	mov al,chessPiece			
+	mov chessBoard[esi],al	;se coloca la ficha en la celda de destino
+	mgotoxy 0,0
+	call printInitialBoard		;se imprime el tablero
+	call printBoard 			;se actualiza el posicionamiento de fichas
+	mov eax,60
+	call clearColumn			;se limpia la columna 60 para volver a imprimir el menu
+	ret
+movePieceProcess endp
+
+getPiecePosition proc
+	pusha						;se guarda el estado actual de los registros para evitar problemas con las llamadas a las funciones
+
+	getPiecePositionInit:
+		call cleanRegisters			;se limpian los registros
+		call getXY
+
+		mov edx, offset strInput	;se guarda la dirección de la cadena de entrada
+		mov ecx, 3					;Cantidad de caracteres a leer (incluyendo el caracter nulo)
+		call ReadString				;se lee la cadena de entrada
+		;call writeDec
+		INVOKE Str_ucase,ADDR strInput ;Pasa a mayuscula las letras (no afecta los numeros) Ejemplo: e4 -> E4
+		;mov edx, offset strInput
+		;call writeString
+
+		cmp eax, 2					;se verifica el largo de la cadena
+		jne wrongPosition			;En caso de no ser de 2 caracteres se muestra un mensaje de error
+
+		cmp strInput[0],"A"
+		jl wrongPosition
+		cmp strInput[0],"H"
+		jg wrongPosition
+		cmp strInput[1],"1"
+		jl wrongPosition
+		cmp strInput[1],"8"
+		jg wrongPosition
+		jmp endGetPiecePosition		;La posición ingresada es valida
+
+	wrongPosition:
+		mov ah, lastY
+		suma ah, 1
+		mgotoxy 60,ah
+		mov edx, offset badPrompt
+		call WriteString
+		suma ah, 1
+		mgotoxy 60,ah
+		call waitMsg
+		mgotoxy lastX,lastY
+		mwriteSpace 25
+		mov al, 60
+		mov ah, lastY
+		suma ah,1
+		mov edi,8
+		call clearColumnSpecificY
+		mgotoxy lastX,lastY
+
+		jmp getPiecePositionInit
+
+
+	endGetPiecePosition:
+		popa						;se restaura el estado de los registros
+		ret
+getPiecePosition endp
 
 clearColumn proc			;Recibe por parametro la columna a limpiar en eax, el valor Y ira por defecto de 0 a 30
 	mov ecx, 0
@@ -139,7 +218,18 @@ clearColumn proc			;Recibe por parametro la columna a limpiar en eax, el valor Y
 	ret
 clearColumn endp
 
-getXY PROC ;Obtiene la posición actual del cursor en la consola {1}
+clearColumnSpecificY proc			;Recibe por parametro la columna a limpiar en al, el valor Y en ah y hasta donde en edi
+	movzx ecx, ah
+	clearColumnLoopSpecificY:
+		mGotoxy al,cl
+		mwritespace 40
+		inc ecx
+		cmp ecx, edi
+		jl clearColumnLoopSpecificY
+	ret
+clearColumnSpecificY endp
+
+getXY PROC ;Obtiene la posición actual del cursor en la consola {1} y los almacena en las variables lastX y lastY
     invoke GetStdHandle, STD_OUTPUT_HANDLE						 ; Invoca la función GetStdHandle para obtener el manejador de la consola de salida estándar (STD_OUTPUT_HANDLE)
     invoke GetConsoleScreenBufferInfo, eax, ADDR BufferInfo      ; Invoca la función GetConsoleScreenBufferInfo para obtener información sobre el búfer de pantalla de la consola.
     movzx eax, BufferInfo.dwCursorPosition.X					 ; Obtiene la coordenada X (columna) de la posición del cursor desde la estructura BufferInfo.
@@ -149,8 +239,6 @@ getXY PROC ;Obtiene la posición actual del cursor en la consola {1}
 	mov lastY, al
 	ret
 getXY ENDP
-
-
 
 printCharacter proc
 	; Args:
@@ -295,8 +383,12 @@ printBoard proc
 			mgotoxy bh,bl 
 			mov al,chessBoard[edi]
 			cmp al, "*"
-			je nextCell
+			je cellValidation
 			call writeChar
+			jmp nextCell
+
+			cellValidation:
+				
 	
 			nextCell:
 				inc edi
