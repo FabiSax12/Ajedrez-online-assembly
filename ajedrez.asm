@@ -31,7 +31,7 @@ include Macros.inc
 				byte  "P", "P", "P", "P", "P", "P", "P", "P"  ; Fila 2 - Peones negros (A2 a H2)
 				byte  "*", "*", "*", "*", "*", "*", "*", "*"  ; Fila 3 - Vacío (A3 a H3)
 				byte  "*", "*", "*", "*", "*", "*", "*", "*"  ; Fila 4 - Vacío (A4 a H4)
-				byte  "*", "*", "*", "*", "*", "*", "*", "*"  ; Fila 5 - Vacío (A5 a H5)
+				byte  "*", "*", "*", "F", "*", "*", "*", "*"  ; Fila 5 - Vacío (A5 a H5)
 				byte  "*", "*", "*", "*", "*", "*", "*", "*"  ; Fila 6 - Vacío (A6 a H6)
 				byte  "p", "p", "p", "p", "p", "p", "p", "p"  ; Fila 7 - Peones blancos (A7 a H7)
 				byte  "r", "n", "b", "q", "k", "b", "n", "r", 0   ; Fila 8 - Blancas (A8 a H8)
@@ -41,6 +41,9 @@ include Macros.inc
 	selectedCellIndex byte ?
 	lastX db ?
 	lastY db ?
+	backup dd 0 ; en caso de necesitar repaldar un registro
+	i db 0
+	j db 0
 
     BufferInfo CONSOLE_SCREEN_BUFFER_INFO <> ;estructura de la Api de Windows para almacenar las coordenadas del cuirsor en x,y {1}(código extraído de "https://stackoverflow.com/questions/50589401/how-to-get-current-cursor-position-in-masm")
 
@@ -88,21 +91,9 @@ menu proc
 			mov eax,60	
 			call clearColumn
 			mGotoxy 60,3
-			mwrite "Cual ficha deseas mover?"
+			mwrite "Posición de la ficha:"
 			mGotoxy 60,4
-			mwrite "1)Torre"
-			mGotoxy 60,5
-			mwrite "2)Caballo"
-			mGotoxy 60,6
-			mwrite "3)Alfil"
-			mGotoxy 75,4
-			mwrite "4)Reina"
-			mGotoxy 75,5
-			mwrite "5)Rey"
-			mGotoxy 75,6
-			mwrite "6)Peones"
-			mGotoxy 60,7
-			mwrite "Opcion: "
+			mwrite "Nueva posición:"
 			readPiece:
 				call ReadDec
 				mgotoxy 60,8
@@ -295,6 +286,35 @@ printSidebar proc
 	ret
 printSidebar endp
 
+printBoard proc
+	call cleanRegisters
+	mov bl,1
+		resetX:
+			mov bh,2
+		boardLoop:		
+			mgotoxy bh,bl 
+			mov al,chessBoard[edi]
+			cmp al, "*"
+			je nextCell
+			call writeChar
+	
+			nextCell:
+				inc edi
+				add bh,5
+				cmp edi,64
+				je printBoardEnd
+				cmp bh,42
+				je resetY
+			jmp boardLoop
+
+			resetY:
+				add bl,3
+				jmp resetX
+	printBoardEnd:
+	ret
+printBoard endp
+
+
 printInitialBoard proc ;Imprime el tablero de ajedrez en la consola
 mov ecx, 1
 	printBoardRowsLoop:
@@ -322,140 +342,18 @@ mov ecx, 1
 
 		lea edx, letterCoords
 		call writestring
-
-		; Lado negro
-		mov dl, "T"
-		mov ah, "A"
-		mov al, 1
-		call printCharacter
-		mov dl, "C"
-		mov ah, "B"
-		mov al, 1
-		call printCharacter
-		mov dl, "A"
-		mov ah, "C"
-		mov al, 1
-		call printCharacter
-		mov dl, "K"
-		mov ah, "D"
-		mov al, 1
-		call printCharacter
-		mov dl, "Q"
-		mov ah, "E"
-		mov al, 1
-		call printCharacter
-		mov dl, "A"
-		mov ah, "F"
-		mov al, 1
-		call printCharacter
-		mov dl, "C"
-		mov ah, "G"
-		mov al, 1
-		call printCharacter
-		mov dl, "T"
-		mov ah, "H"
-		mov al, 1
-		call printCharacter
-		mov dl, "P"
-		mov ah, "A"
-		mov al, 2
-		call printCharacter
-		mov dl, "P"
-		mov ah, "B"
-		mov al, 2
-		call printCharacter
-		mov dl, "P"
-		mov ah, "C"
-		mov al, 2
-		call printCharacter
-		mov dl, "P"
-		mov ah, "D"
-		mov al, 2
-		call printCharacter
-		mov dl, "P"
-		mov ah, "E"
-		mov al, 2
-		call printCharacter
-		mov dl, "P"
-		mov ah, "F"
-		mov al, 2
-		call printCharacter
-		mov dl, "P"
-		mov ah, "G"
-		mov al, 2
-		call printCharacter
-		mov dl, "P"
-		mov ah, "H"
-		mov al, 2
-		call printCharacter
-
-		; Lado blanco
-		mov dl, "t"
-		mov ah, "A"
-		mov al, 8
-		call printCharacter
-		mov dl, "c"
-		mov ah, "B"
-		mov al, 8
-		call printCharacter
-		mov dl, "a"
-		mov ah, "C"
-		mov al, 8
-		call printCharacter
-		mov dl, "k"
-		mov ah, "D"
-		mov al, 8
-		call printCharacter
-		mov dl, "q"
-		mov ah, "E"
-		mov al, 8
-		call printCharacter
-		mov dl, "a"
-		mov ah, "F"
-		mov al, 8
-		call printCharacter
-		mov dl, "c"
-		mov ah, "G"
-		mov al, 8
-		call printCharacter
-		mov dl, "t"
-		mov ah, "H"
-		mov al, 8
-		call printCharacter
-		mov dl, "p"
-		mov ah, "A"
-		mov al, 7
-		call printCharacter
-		mov dl, "p"
-		mov ah, "B"
-		mov al, 7
-		call printCharacter
-		mov dl, "p"
-		mov ah, "C"
-		mov al, 7
-		call printCharacter
-		mov dl, "p"
-		mov ah, "D"
-		mov al, 7
-		call printCharacter
-		mov dl, "p"
-		mov ah, "E"
-		mov al, 7
-		call printCharacter
-		mov dl, "p"
-		mov ah, "F"
-		mov al, 7
-		call printCharacter
-		mov dl, "p"
-		mov ah, "G"
-		mov al, 7
-		call printCharacter
-		mov dl, "p"
-		mov ah, "H"
-		mov al, 7
-		call printCharacter
-
+		call printBoard
 		ret
 printInitialBoard endp
+
+cleanRegisters proc
+	xor eax,eax
+	xor ebx,ebx
+	xor ecx,ecx
+	xor edx,edx
+	xor esi,esi
+	xor edi,edi
+	ret
+cleanRegisters endp
 
 end main
