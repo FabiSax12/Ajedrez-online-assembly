@@ -67,7 +67,7 @@ main proc
 
 	; to-do Pantalla inicial
 	; to-do asignar jugador
-	mov playerId, 1
+	mov playerId, 0
 
 	call printInitialBoard
 	call printSidebar
@@ -189,6 +189,9 @@ menu proc
 			mov dl, selectedCellIndex
 			pop bx
 			mov chessBoard[edx], bl
+
+			; Escribir la jugada en el archivo
+			call writeDataFile
 
 			call printInitialBoard
 			call waitForOpponent
@@ -353,11 +356,58 @@ readDataFile proc
     ; Cerrar el archivo de entrada
 	mov eax, fileHandle
     call CloseFile
-
-	fileError:
+	cmp eax, 0
+	je fileError
 
 	ret
+
+	fileError:
+	exit
 readDataFile endp
+
+writeDataFile proc
+	call readDataFile
+	lea edx, fileName
+	call CreateOutputFile
+	mov fileHandle, eax
+	jc fileError
+
+	lea esi, buffer
+	mov ecx, 0
+	find_end_string:
+		cmp buffer[ecx], 0			; Buscar final del string
+		je found_end
+		inc ecx
+		jmp find_end_string
+
+	found_end:
+		mov al, playerId
+		add al, 30h
+
+		mov buffer[ecx], al
+		mov buffer[ecx+1], ","
+		mov dl, fromCell
+		mov buffer[ecx+2], dl
+		mov dl, fromCell[1]
+		mov buffer[ecx+3], dl
+		mov buffer[ecx+4], ","
+		mov dl, toCell
+		mov buffer[ecx+5], dl
+		mov dl, toCell[1]
+		mov buffer[ecx+6], dl
+		mov buffer[ecx+7], 13
+		mov buffer[ecx+8], 10
+
+	mov eax, fileHandle
+	lea edx, buffer
+	add ecx, 8
+	call WriteToFile
+	mov eax, fileHandle
+	call CloseFile
+
+	fileError:
+	ret
+writeDataFile endp
 
 getLastMove proc
 	; Return;
