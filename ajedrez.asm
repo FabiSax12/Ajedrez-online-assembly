@@ -113,98 +113,8 @@ menu proc
 				jmp options_input        ;tipo de dato incorrecto
 
 		movePiece:
-			mov eax,60
-			call clearColumn
-			mGotoxy 60,3
-			mwrite "Posición de la ficha:"
-			mGotoxy 60,4
-			mwrite "Nueva posición:"
-
-			movement_input:
-
-				; Desde cual celda quiere mover ------------------------
-				mGotoxy 82, 3
-				mReadString fromCell
-				; Validar columna (A - H)
-				mov dl, fromCell
-				call validateColumn
-				cmp al, 0
-				jz wrongInputPiece
-				; Validar fila (1 - 8)
-				mov dl, fromCell[1]
-				call validateRow
-				cmp al, 0
-				jz wrongInputPiece
-
-				; Hacia cual celda quiere mover ------------------------
-				mGotoxy 76, 4
-				mReadString toCell
-				; Validar columna (A - H)
-				mov dl, toCell
-				call validateColumn
-				cmp al, 0
-				jz wrongInputPiece
-				; Validar fila (1 - 8)
-				mov dl, toCell[1]
-				call validateRow
-				cmp al, 0
-				jz wrongInputPiece
-
-				jmp valid_movement
-
-				wrongInputPiece:
-					mGotoxy 60,6
-					lea edx, badPrompt
-					call writeString
-
-					mGotoxy 82, 3
-					mWriteSpace 2
-					mGotoxy 76, 4
-					mWriteSpace 2
-					jmp movement_input
-
-			valid_movement:
-				mov ah, fromCell
-				mov al, fromCell[1]
-				sub al, 30h
-				call calcCellIndex
-
-				mGotoxy 60,6
-				mWrite "Moviendo "
-				mov dl, selectedCellIndex
-				mov al, chessBoard[edx]
-				call writeChar
-
-				mWrite " desde "
-				lea edx, fromCell
-				call writeString
-
-				mWrite " hacia "
-				lea edx, toCell
-				call writeString
-
-				; Mover ya en la matriz y mostrar el movimiento
-				xor edx, edx
-				mov dl, selectedCellIndex
-				mov bl, chessBoard[edx]		; Guardar pieza
-				mov chessBoard[edx], "*"	; Borrar de donde estaba
-
-				mov ah, toCell
-				mov al, toCell[1]
-				sub al, 30h
-				push bx
-				call calcCellIndex
-				xor edx, edx
-				mov dl, selectedCellIndex
-				pop bx
-				mov chessBoard[edx], bl
-
-				; Escribir la jugada en el archivo
-				call writeDataFile
-
-				call printInitialBoard
-				call waitForOpponent
-
+			call movePieceProcess
+			jmp initMenu
 		customTextColor:
 			call setColor
 			mov eax,60
@@ -625,6 +535,101 @@ validateRow proc
 	mov al, 0
 	ret
 validateRow endp
+
+movePieceProcess proc
+	mov eax,60
+	call clearColumn
+	mGotoxy 60,3
+	mwrite "Posición de la ficha:"
+	mGotoxy 60,4
+	mwrite "Nueva posición:"
+
+	movement_input:
+
+		; Desde cual celda quiere mover ------------------------
+		mGotoxy 82, 3
+		mReadString fromCell
+		; Validar columna (A - H)
+		mov dl, fromCell
+		call validateColumn
+		cmp al, 0
+		jz wrongInputPiece
+		; Validar fila (1 - 8)
+		mov dl, fromCell[1]
+		call validateRow
+		cmp al, 0
+		jz wrongInputPiece
+
+		; Hacia cual celda quiere mover ------------------------
+		mGotoxy 76, 4
+		mReadString toCell
+		; Validar columna (A - H)
+		mov dl, toCell
+		call validateColumn
+		cmp al, 0
+		jz wrongInputPiece
+		; Validar fila (1 - 8)
+		mov dl, toCell[1]
+		call validateRow
+		cmp al, 0
+		jz wrongInputPiece
+
+		jmp valid_movement
+
+		wrongInputPiece:
+			mGotoxy 60,6
+			lea edx, badPrompt
+			call writeString
+			xor edx, edx
+			mGotoxy 82, 3
+			mWriteSpace 2
+			mGotoxy 76, 4
+			mWriteSpace 2
+			jmp movement_input
+
+	valid_movement:
+		mov ah, fromCell
+		mov al, fromCell[1]
+		sub al, 30h
+		call calcCellIndex
+
+		mGotoxy 60,6
+		mWrite "Moviendo "
+		mov dl, selectedCellIndex
+		mov al, chessBoard[edx] ;acá se ha caído varias veces (no he identificado el porqué)
+		call writeChar
+
+		mWrite " desde "
+		lea edx, fromCell
+		call writeString
+
+		mWrite " hacia "
+		lea edx, toCell
+		call writeString
+
+		; Mover ya en la matriz y mostrar el movimiento
+		xor edx, edx
+		mov dl, selectedCellIndex
+		mov bl, chessBoard[edx]		; Guardar pieza
+		mov chessBoard[edx], "*"	; Borrar de donde estaba
+
+		mov ah, toCell
+		mov al, toCell[1]
+		sub al, 30h
+		push bx
+		call calcCellIndex
+		xor edx, edx
+		mov dl, selectedCellIndex
+		pop bx
+		mov chessBoard[edx], bl
+
+		; Escribir la jugada en el archivo
+		call writeDataFile
+
+		call printInitialBoard
+		call waitForOpponent
+	ret
+movePieceProcess endp
 
 setColor proc
 	mov eax, 60
