@@ -1,1 +1,1 @@
-idPartida
+0,A2,A4
