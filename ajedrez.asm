@@ -9,9 +9,12 @@ include Macros.inc
 	fileName byte "data.txt", 0			; Nombre del archivo de entrada
     buffer byte 256 DUP(?)				; Buffer para leer el archivo
     bytesRead dword ?					; Para almacenar los bytes leídos
+	playerId byte ?						; Para Sincronizar cual jugador juega primero (0 - 1)
 
 	; IU Components
-	letterCoords db		"  A    B    C    D    E    F    G    H  ", 10, 13,0
+	letterCoords db		"________________________________________",10,
+						"  A    B    C    D    E    F    G    H  ", 10, 13,0
+
 	boardRowBlack db    "* * *     * * *     * * *     * * *     ", 10, 13,
 						"* * *     * * *     * * *     * * *     ", 10, 13,
 						"* * *     * * *     * * *     * * *     ", 10, 13, 0
@@ -19,9 +22,11 @@ include Macros.inc
 	boardRowWhite db    "     * * *     * * *     * * *     * * *", 10, 13,
 						"     * * *     * * *     * * *     * * *", 10, 13,
 						"     * * *     * * *     * * *     * * *", 10, 13, 0
+
 	blackCell db "* * *", 10, 13,
 				 "* * *", 10, 13,
 				 "* * *", 10, 13, 0
+
 	whiteCell db "     ", 10, 13,
 				 "     ", 10, 13,
 				 "     ", 10, 13, 0
@@ -40,21 +45,217 @@ include Macros.inc
 	selectedCellX byte ?
 	selectedCellY byte ?
 	selectedCellIndex byte ?
+	lastX db ?
+	lastY db ?
+	backup dd 0 ; en caso de necesitar repaldar un registro
+	i db 0
+	j db 0
+
+	;estructura de la Api de Windows para almacenar las coordenadas del cuirsor en x,y {1}
+	;(código extraído de "https://stackoverflow.com/questions/50589401/how-to-get-current-cursor-position-in-masm")
+    BufferInfo CONSOLE_SCREEN_BUFFER_INFO <>
+
+	;Error messages
+	badPrompt db "Valor incorrecto, intenta de nuevo!",0
+
+	;User inputs
+	fromCell byte 2 DUP(0),0
+	toCell byte 2 DUP(0),0
 
 .code
 main proc
-	;;lea edx, letterCoords
-	;;call writestring
+
+	; to-do Pantalla inicial
+	; to-do asignar jugador
+	mov playerId, 0
 
 	call printInitialBoard
-	call readDataFile
-	mGotoxy 0, 27
-	mov edx, offset buffer
-	call writestring
-	
-mGotoxy 0, 30
+	call printSidebar
+	call menu
+	mGotoxy 0,25
+
 exit
 main endp
+
+menu proc
+	mGotoxy 60,3
+	mwrite "Que desea hacer?" 
+	mGotoxy 60,4 
+	mwrite "1.Mover ficha"
+	mGotoxy 60,5 
+	mwrite "2.Salir"
+	mgotoxy 60,6
+	mwrite "Opcion: "
+
+	options_input:
+		call ReadDec
+		mgotoxy 60,7
+		jo  wrongInput
+		cmp eax,1
+		je  movePiece
+		jmp endMenu
+
+		wrongInput:
+			mov  edx,OFFSET badPrompt
+			call WriteString
+			mgotoxy 68,6
+			mwritespace 100
+			mgotoxy 68,6
+			jmp options_input        ;tipo de dato incorrecto
+
+    movePiece:
+		mov eax,60
+		call clearColumn
+		mGotoxy 60,3
+		mwrite "Posición de la ficha:"
+		mGotoxy 60,4
+		mwrite "Nueva posición:"
+
+		movement_input:
+
+			; Desde cual celda quiere mover ------------------------
+			mGotoxy 82, 3
+			mReadString fromCell
+			; Validar columna (A - H)
+			mov dl, fromCell
+			call validateColumn
+			cmp al, 0
+			jz wrongInputPiece
+			; Validar fila (1 - 8)
+			mov dl, fromCell[1]
+			call validateRow
+			cmp al, 0
+			jz wrongInputPiece
+
+			; Hacia cual celda quiere mover ------------------------
+			mGotoxy 76, 4
+			mReadString toCell
+			; Validar columna (A - H)
+			mov dl, toCell
+			call validateColumn
+			cmp al, 0
+			jz wrongInputPiece
+			; Validar fila (1 - 8)
+			mov dl, toCell[1]
+			call validateRow
+			cmp al, 0
+			jz wrongInputPiece
+
+			jmp valid_movement
+
+			wrongInputPiece:
+				mGotoxy 60,6
+				lea edx, badPrompt
+				call writeString
+
+				mGotoxy 82, 3
+				mWriteSpace 2
+				mGotoxy 76, 4
+				mWriteSpace 2
+				jmp movement_input
+
+		valid_movement:
+			mov ah, fromCell
+			mov al, fromCell[1]
+			sub al, 30h
+			call calcCellIndex
+
+			mGotoxy 60,6
+			mWrite "Moviendo "
+			mov dl, selectedCellIndex
+			mov al, chessBoard[edx]
+			call writeChar
+
+			mWrite " desde "
+			lea edx, fromCell
+			call writeString
+
+			mWrite " hacia "
+			lea edx, toCell
+			call writeString
+
+			; Mover ya en la matriz y mostrar el movimiento
+			xor edx, edx
+			mov dl, selectedCellIndex
+			mov bl, chessBoard[edx]		; Guardar pieza
+			mov chessBoard[edx], "*"	; Borrar de donde estaba
+
+			mov ah, toCell
+			mov al, toCell[1]
+			sub al, 30h
+			push bx
+			call calcCellIndex
+			xor edx, edx
+			mov dl, selectedCellIndex
+			pop bx
+			mov chessBoard[edx], bl
+
+			; Escribir la jugada en el archivo
+			call writeDataFile
+
+			call printInitialBoard
+			call waitForOpponent
+
+
+	endMenu:
+	ret
+menu endp
+
+waitForOpponent proc
+
+	waiting:
+	mov eax, 1500
+	call delay
+
+	call readDataFile
+	call getLastMove
+	cmp dl, playerId
+	je waiting
+
+	; Mover ya en la matriz y mostrar el movimiento
+	push bx						; Guardar la jugada
+	call calcCellIndex	
+	xor edx, edx
+	mov dl, selectedCellIndex
+	mov bl, chessBoard[edx]		; Guardar pieza
+	mov chessBoard[edx], "*"	; Borrar de donde estaba
+
+	pop ax						; Sacar la jugada
+	push bx						; Guardar la pieza
+	call calcCellIndex
+	xor edx, edx
+	mov dl, selectedCellIndex
+	pop bx
+	mov chessBoard[edx], bl
+
+	call printInitialBoard
+	call menu
+
+waitForOpponent endp
+
+clearColumn proc			;Recibe por parametro la columna a limpiar en eax, el valor Y ira por defecto de 0 a 30
+	mov ecx, 0
+	clearColumnLoop:
+		mGotoxy al,cl
+		mwritespace 30
+		inc ecx
+		cmp ecx, 30
+		jl clearColumnLoop
+	ret
+clearColumn endp
+
+getXY PROC ;Obtiene la posición actual del cursor en la consola {1}
+    invoke GetStdHandle, STD_OUTPUT_HANDLE						 ; Invoca la función GetStdHandle para obtener el manejador de la consola de salida estándar (STD_OUTPUT_HANDLE)
+    invoke GetConsoleScreenBufferInfo, eax, ADDR BufferInfo      ; Invoca la función GetConsoleScreenBufferInfo para obtener información sobre el búfer de pantalla de la consola.
+    movzx eax, BufferInfo.dwCursorPosition.X					 ; Obtiene la coordenada X (columna) de la posición del cursor desde la estructura BufferInfo.
+	mov lastX, al
+    ;call WriteInt
+    movzx eax, BufferInfo.dwCursorPosition.Y					 ; Obtiene la coordenada Y (fila) de la posición del cursor desde la estructura BufferInfo.	
+	mov lastY, al
+	ret
+getXY ENDP
+
+
 
 printCharacter proc
 	; Args:
@@ -78,7 +279,6 @@ printCharacter proc
 	call writechar
 
 	ret
-
 printCharacter endp
 
 calcCellIndex proc
@@ -100,7 +300,6 @@ calcCellIndex proc
 	add al, dh        ; al = col + row * 8
 
 	mov selectedCellIndex, al
-
 	ret
 calcCellIndex endp
 
@@ -141,7 +340,6 @@ calcCellCenterCoords proc
 calcCellCenterCoords endp
 
 readDataFile proc
-
 	; Abrir el archivo de entrada
     mov edx, OFFSET fileName
     call OpenInputFile
@@ -158,14 +356,166 @@ readDataFile proc
     ; Cerrar el archivo de entrada
 	mov eax, fileHandle
     call CloseFile
-
-	fileError:
+	cmp eax, 0
+	je fileError
 
 	ret
+
+	fileError:
+	exit
 readDataFile endp
 
-printInitialBoard proc
+writeDataFile proc
+	call readDataFile
+	lea edx, fileName
+	call CreateOutputFile
+	mov fileHandle, eax
+	jc fileError
 
+	lea esi, buffer
+	mov ecx, 0
+	find_end_string:
+		cmp buffer[ecx], 0			; Buscar final del string
+		je found_end
+		inc ecx
+		jmp find_end_string
+
+	found_end:
+		mov al, playerId
+		add al, 30h
+
+		mov buffer[ecx], al
+		mov buffer[ecx+1], ","
+		mov dl, fromCell
+		mov buffer[ecx+2], dl
+		mov dl, fromCell[1]
+		mov buffer[ecx+3], dl
+		mov buffer[ecx+4], ","
+		mov dl, toCell
+		mov buffer[ecx+5], dl
+		mov dl, toCell[1]
+		mov buffer[ecx+6], dl
+		mov buffer[ecx+7], 13
+		mov buffer[ecx+8], 10
+
+	mov eax, fileHandle
+	lea edx, buffer
+	add ecx, 8
+	call WriteToFile
+	mov eax, fileHandle
+	call CloseFile
+
+	fileError:
+	ret
+writeDataFile endp
+
+getLastMove proc
+	; Return;
+	; - dl: Jugador (0 - 1)
+	; - ax: Desde (ah: Columna | al: fila)
+	; - bx: Hacia (ah: Columna | al: fila)
+
+	mov esi, OFFSET buffer       ; Cargar la dirección del buffer en esi
+    mov edi, OFFSET buffer       ; Cargar la dirección del buffer en edi
+    add esi, LENGTHOF buffer - 2 ; Posicionar el puntero antes del último '\n'
+
+    ; Retrocede hasta encontrar el salto de línea '\n' que precede la última línea
+    mov ecx, LENGTHOF buffer     ; Usamos ecx como contador
+	find_end_string:
+		cmp BYTE PTR [esi], 0Ah      ; 0Ah es '\n' en ASCII
+		je found_end                 ; Si es '\n', encontramos el inicio de la última línea
+		dec esi                      ; Retrocede el puntero
+		loop find_end_string
+
+	found_end:
+		sub esi, 8					; Mueve el puntero al inicio de la última línea
+
+		; Ahora extraemos los valores separados por comas
+		; Primer valor (antes de la primera coma) en DL
+		mov dl, [esi]                ; Primer valor numérico (char) en dl
+		inc esi                      ; Avanza el puntero
+
+		inc esi						; Saltar la coma
+    
+		; Segundo valor (cadena antes de la segunda coma) en AX
+		mov ah, [esi]                ; Almacena el primer carácter de la segunda cadena en AL
+		mov al, [esi+1]              ; Almacena el segundo carácter en AH
+		add esi, 2                   ; Avanza 2 posiciones
+    
+		; Salta la coma
+		inc esi                      ; Salta la coma ','
+
+		; Tercer valor (cadena antes del final de línea) en BX
+		mov bh, [esi]                ; Almacena el primer carácter de la tercera cadena en BL
+		mov bl, [esi+1]              ; Almacena el segundo carácter en BH
+
+		sub bl, 30h
+		sub al, 30h
+		sub dl, 30h
+    
+		ret
+getLastMove endp
+
+printSidebar proc
+	pusha
+	xor edx,edx
+	xor ecx,ecx
+	xor ebx,ebx
+	mov cl,0
+	mov edx,0
+	mov ch,2
+	loopSidebar:
+		xor eax,eax
+		mgotoxy 41,cl
+		mwrite "|"
+		mov al,ch
+		mov bl,3
+		div bl
+		cmp ah,0
+		jne nextSidebar
+		movzx eax,al
+		call writeDec
+
+		nextSidebar:
+			inc cl
+			inc ch
+			cmp cl,24
+		jl loopSidebar
+		popa
+	ret
+printSidebar endp
+
+printBoard proc
+	call cleanRegisters
+	mov bl,1
+		resetX:
+			mov bh,2
+		boardLoop:		
+			mgotoxy bh,bl 
+			mov al,chessBoard[edi]
+			cmp al, "*"
+			je nextCell
+			call writeChar
+	
+			nextCell:
+				inc edi
+				add bh,5
+				cmp edi,64
+				je printBoardEnd
+				cmp bh,42
+				je resetY
+			jmp boardLoop
+
+			resetY:
+				add bl,3
+				jmp resetX
+	printBoardEnd:
+	ret
+printBoard endp
+
+
+printInitialBoard proc ;Imprime el tablero de ajedrez en la consola
+mGotoxy 0,0
 mov ecx, 1
 	printBoardRowsLoop:
 		mov eax, ecx
@@ -174,8 +524,8 @@ mov ecx, 1
 		mov bl, 2
 		div bl
 		cmp ah, 0
-		je isWhiteCell
-		jne isBlackCell
+		je isBlackCell
+		jne isWhiteCell
 
 		isWhiteCell: 
 			lea edx, boardRowWhite
@@ -192,140 +542,75 @@ mov ecx, 1
 
 		lea edx, letterCoords
 		call writestring
-
-		; Lado negro
-		mov dl, "T"
-		mov ah, "A"
-		mov al, 1
-		call printCharacter
-		mov dl, "C"
-		mov ah, "B"
-		mov al, 1
-		call printCharacter
-		mov dl, "A"
-		mov ah, "C"
-		mov al, 1
-		call printCharacter
-		mov dl, "K"
-		mov ah, "D"
-		mov al, 1
-		call printCharacter
-		mov dl, "Q"
-		mov ah, "E"
-		mov al, 1
-		call printCharacter
-		mov dl, "A"
-		mov ah, "F"
-		mov al, 1
-		call printCharacter
-		mov dl, "C"
-		mov ah, "G"
-		mov al, 1
-		call printCharacter
-		mov dl, "T"
-		mov ah, "H"
-		mov al, 1
-		call printCharacter
-		mov dl, "P"
-		mov ah, "A"
-		mov al, 2
-		call printCharacter
-		mov dl, "P"
-		mov ah, "B"
-		mov al, 2
-		call printCharacter
-		mov dl, "P"
-		mov ah, "C"
-		mov al, 2
-		call printCharacter
-		mov dl, "P"
-		mov ah, "D"
-		mov al, 2
-		call printCharacter
-		mov dl, "P"
-		mov ah, "E"
-		mov al, 2
-		call printCharacter
-		mov dl, "P"
-		mov ah, "F"
-		mov al, 2
-		call printCharacter
-		mov dl, "P"
-		mov ah, "G"
-		mov al, 2
-		call printCharacter
-		mov dl, "P"
-		mov ah, "H"
-		mov al, 2
-		call printCharacter
-
-		; Lado blanco
-		mov dl, "t"
-		mov ah, "A"
-		mov al, 8
-		call printCharacter
-		mov dl, "c"
-		mov ah, "B"
-		mov al, 8
-		call printCharacter
-		mov dl, "a"
-		mov ah, "C"
-		mov al, 8
-		call printCharacter
-		mov dl, "k"
-		mov ah, "D"
-		mov al, 8
-		call printCharacter
-		mov dl, "q"
-		mov ah, "E"
-		mov al, 8
-		call printCharacter
-		mov dl, "a"
-		mov ah, "F"
-		mov al, 8
-		call printCharacter
-		mov dl, "c"
-		mov ah, "G"
-		mov al, 8
-		call printCharacter
-		mov dl, "t"
-		mov ah, "H"
-		mov al, 8
-		call printCharacter
-		mov dl, "p"
-		mov ah, "A"
-		mov al, 7
-		call printCharacter
-		mov dl, "p"
-		mov ah, "B"
-		mov al, 7
-		call printCharacter
-		mov dl, "p"
-		mov ah, "C"
-		mov al, 7
-		call printCharacter
-		mov dl, "p"
-		mov ah, "D"
-		mov al, 7
-		call printCharacter
-		mov dl, "p"
-		mov ah, "E"
-		mov al, 7
-		call printCharacter
-		mov dl, "p"
-		mov ah, "F"
-		mov al, 7
-		call printCharacter
-		mov dl, "p"
-		mov ah, "G"
-		mov al, 7
-		call printCharacter
-		mov dl, "p"
-		mov ah, "H"
-		mov al, 7
-		call printCharacter
-
+		call printBoard
 		ret
 printInitialBoard endp
+
+cleanRegisters proc
+	xor eax,eax
+	xor ebx,ebx
+	xor ecx,ecx
+	xor edx,edx
+	xor esi,esi
+	xor edi,edi
+	ret
+cleanRegisters endp
+
+isInRange proc
+
+	; Args:
+	; - dl: dato
+    ; - al: desde
+	; - ah: hasta
+    ; Return:
+	; - al: resultado booleano (1 o 0)
+
+	cmp dl, al
+	jl notValid
+	cmp dl, ah
+	jg notValid
+	mov al, 1
+	ret
+
+	notValid:
+	mov al, 0
+	ret
+
+isInRange endp
+
+validateColumn proc
+	; Args:
+    ; - dl: caracter
+    ; Return:
+	; - al: resultado booleano (1 o 0)
+
+	cmp dl, 65
+	jl notValid
+	cmp dl, 72
+	jg notValid
+	mov al, 1
+	ret
+
+	notValid:
+	mov al, 0
+	ret
+validateColumn endp
+
+validateRow proc
+	; Args:
+    ; - dl: caracter
+    ; Return:
+	; - al: resultado booleano (1 o 0)
+	cmp dl, 49
+	jl notValid
+	cmp dl, 56
+	jg notValid
+	mov al, 1
+	ret
+
+	notValid:
+	mov al, 0
+	ret
+validateRow endp
 
 end main
