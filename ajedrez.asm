@@ -71,7 +71,6 @@ main proc
 
 	call printInitialBoard
 	call printSidebar
-	call readDataFile
 	call menu
 	mGotoxy 0,25
 
@@ -211,16 +210,15 @@ waitForOpponent proc
 	je waiting
 
 	; Mover ya en la matriz y mostrar el movimiento
+	push bx						; Guardar la jugada
 	call calcCellIndex	
 	xor edx, edx
 	mov dl, selectedCellIndex
 	mov bl, chessBoard[edx]		; Guardar pieza
 	mov chessBoard[edx], "*"	; Borrar de donde estaba
 
-	mov ah, toCell
-	mov al, toCell[1]
-	sub al, 30h
-	push bx
+	pop ax						; Sacar la jugada
+	push bx						; Guardar la pieza
 	call calcCellIndex
 	xor edx, edx
 	mov dl, selectedCellIndex
@@ -228,7 +226,7 @@ waitForOpponent proc
 	mov chessBoard[edx], bl
 
 	call printInitialBoard
-	jmp waiting
+	call menu
 
 waitForOpponent endp
 
@@ -373,39 +371,37 @@ getLastMove proc
 
     ; Retrocede hasta encontrar el salto de línea '\n' que precede la última línea
     mov ecx, LENGTHOF buffer     ; Usamos ecx como contador
-	mov eax, 2					 ; Hay que encontrar 3 '\n'
-	find_last_line:
+	find_end_string:
 		cmp BYTE PTR [esi], 0Ah      ; 0Ah es '\n' en ASCII
-		je found_line                ; Si es '\n', encontramos el inicio de la última línea
+		je found_end                 ; Si es '\n', encontramos el inicio de la última línea
 		dec esi                      ; Retrocede el puntero
-		loop find_last_line
+		loop find_end_string
 
-	found_line:
-		cmp eax, 0
-		dec eax
-		jne find_last_line
-
-		inc esi                      ; Mueve el puntero al inicio de la última línea
+	found_end:
+		sub esi, 8					; Mueve el puntero al inicio de la última línea
 
 		; Ahora extraemos los valores separados por comas
 		; Primer valor (antes de la primera coma) en DL
 		mov dl, [esi]                ; Primer valor numérico (char) en dl
 		inc esi                      ; Avanza el puntero
 
-		; Salta la coma
-		inc esi                      ; Salta la coma ','
+		inc esi						; Saltar la coma
     
 		; Segundo valor (cadena antes de la segunda coma) en AX
-		mov al, [esi]                ; Almacena el primer carácter de la segunda cadena en AL
-		mov ah, [esi+1]              ; Almacena el segundo carácter en AH
+		mov ah, [esi]                ; Almacena el primer carácter de la segunda cadena en AL
+		mov al, [esi+1]              ; Almacena el segundo carácter en AH
 		add esi, 2                   ; Avanza 2 posiciones
     
 		; Salta la coma
 		inc esi                      ; Salta la coma ','
 
 		; Tercer valor (cadena antes del final de línea) en BX
-		mov bl, [esi]                ; Almacena el primer carácter de la tercera cadena en BL
-		mov bh, [esi+1]              ; Almacena el segundo carácter en BH
+		mov bh, [esi]                ; Almacena el primer carácter de la tercera cadena en BL
+		mov bl, [esi+1]              ; Almacena el segundo carácter en BH
+
+		sub bl, 30h
+		sub al, 30h
+		sub dl, 30h
     
 		ret
 getLastMove endp
