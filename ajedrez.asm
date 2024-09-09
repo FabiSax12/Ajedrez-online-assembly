@@ -78,125 +78,138 @@ exit
 main endp
 
 menu proc
-	mGotoxy 60,3
-	mwrite "Que desea hacer?" 
-	mGotoxy 60,4 
-	mwrite "1.Mover ficha"
-	mGotoxy 60,5 
-	mwrite "2.Salir"
-	mgotoxy 60,6
-	mwrite "Opcion: "
-
-	options_input:
-		call ReadDec
-		mgotoxy 60,7
-		jo  wrongInput
-		cmp eax,1
-		je  movePiece
-		jmp endMenu
-
-		wrongInput:
-			mov  edx,OFFSET badPrompt
-			call WriteString
-			mgotoxy 68,6
-			mwritespace 100
-			mgotoxy 68,6
-			jmp options_input        ;tipo de dato incorrecto
-
-    movePiece:
-		mov eax,60
-		call clearColumn
+	initMenu:
 		mGotoxy 60,3
-		mwrite "Posición de la ficha:"
-		mGotoxy 60,4
-		mwrite "Nueva posición:"
+		mwrite "Que desea hacer?" 
+		mGotoxy 60,4 
+		mwrite "1.Mover ficha"
+		mGotoxy 60,5 
+		mwrite "2.Personalizar"
+		mGotoxy 60,6 
+		mwrite "3.Salir"
+		mgotoxy 60,10
+		mwrite "Opcion: "
 
-		movement_input:
+		options_input:
+			mgotoxy 68,10
+			mWriteSpace 50
+			mGotoXY 68,10
+			call ReadDec
+			mgotoxy 60,11
+			;jo  wrongInput
+			cmp eax,1
+			je  movePiece
+			cmp eax,2
+			je customTextColor
+			cmp eax,3
+			je endMenu
 
-			; Desde cual celda quiere mover ------------------------
-			mGotoxy 82, 3
-			mReadString fromCell
-			; Validar columna (A - H)
-			mov dl, fromCell
-			call validateColumn
-			cmp al, 0
-			jz wrongInputPiece
-			; Validar fila (1 - 8)
-			mov dl, fromCell[1]
-			call validateRow
-			cmp al, 0
-			jz wrongInputPiece
+			wrongInput:
+				mov  edx,OFFSET badPrompt
+				call WriteString
+				mgotoxy 68,10
+				mwritespace 50
+				mgotoxy 68,10
+				jmp options_input        ;tipo de dato incorrecto
 
-			; Hacia cual celda quiere mover ------------------------
-			mGotoxy 76, 4
-			mReadString toCell
-			; Validar columna (A - H)
-			mov dl, toCell
-			call validateColumn
-			cmp al, 0
-			jz wrongInputPiece
-			; Validar fila (1 - 8)
-			mov dl, toCell[1]
-			call validateRow
-			cmp al, 0
-			jz wrongInputPiece
+		movePiece:
+			mov eax,60
+			call clearColumn
+			mGotoxy 60,3
+			mwrite "Posición de la ficha:"
+			mGotoxy 60,4
+			mwrite "Nueva posición:"
 
-			jmp valid_movement
+			movement_input:
 
-			wrongInputPiece:
+				; Desde cual celda quiere mover ------------------------
+				mGotoxy 82, 3
+				mReadString fromCell
+				; Validar columna (A - H)
+				mov dl, fromCell
+				call validateColumn
+				cmp al, 0
+				jz wrongInputPiece
+				; Validar fila (1 - 8)
+				mov dl, fromCell[1]
+				call validateRow
+				cmp al, 0
+				jz wrongInputPiece
+
+				; Hacia cual celda quiere mover ------------------------
+				mGotoxy 76, 4
+				mReadString toCell
+				; Validar columna (A - H)
+				mov dl, toCell
+				call validateColumn
+				cmp al, 0
+				jz wrongInputPiece
+				; Validar fila (1 - 8)
+				mov dl, toCell[1]
+				call validateRow
+				cmp al, 0
+				jz wrongInputPiece
+
+				jmp valid_movement
+
+				wrongInputPiece:
+					mGotoxy 60,6
+					lea edx, badPrompt
+					call writeString
+
+					mGotoxy 82, 3
+					mWriteSpace 2
+					mGotoxy 76, 4
+					mWriteSpace 2
+					jmp movement_input
+
+			valid_movement:
+				mov ah, fromCell
+				mov al, fromCell[1]
+				sub al, 30h
+				call calcCellIndex
+
 				mGotoxy 60,6
-				lea edx, badPrompt
+				mWrite "Moviendo "
+				mov dl, selectedCellIndex
+				mov al, chessBoard[edx]
+				call writeChar
+
+				mWrite " desde "
+				lea edx, fromCell
 				call writeString
 
-				mGotoxy 82, 3
-				mWriteSpace 2
-				mGotoxy 76, 4
-				mWriteSpace 2
-				jmp movement_input
+				mWrite " hacia "
+				lea edx, toCell
+				call writeString
 
-		valid_movement:
-			mov ah, fromCell
-			mov al, fromCell[1]
-			sub al, 30h
-			call calcCellIndex
+				; Mover ya en la matriz y mostrar el movimiento
+				xor edx, edx
+				mov dl, selectedCellIndex
+				mov bl, chessBoard[edx]		; Guardar pieza
+				mov chessBoard[edx], "*"	; Borrar de donde estaba
 
-			mGotoxy 60,6
-			mWrite "Moviendo "
-			mov dl, selectedCellIndex
-			mov al, chessBoard[edx]
-			call writeChar
+				mov ah, toCell
+				mov al, toCell[1]
+				sub al, 30h
+				push bx
+				call calcCellIndex
+				xor edx, edx
+				mov dl, selectedCellIndex
+				pop bx
+				mov chessBoard[edx], bl
 
-			mWrite " desde "
-			lea edx, fromCell
-			call writeString
+				; Escribir la jugada en el archivo
+				call writeDataFile
 
-			mWrite " hacia "
-			lea edx, toCell
-			call writeString
+				call printInitialBoard
+				call waitForOpponent
 
-			; Mover ya en la matriz y mostrar el movimiento
-			xor edx, edx
-			mov dl, selectedCellIndex
-			mov bl, chessBoard[edx]		; Guardar pieza
-			mov chessBoard[edx], "*"	; Borrar de donde estaba
-
-			mov ah, toCell
-			mov al, toCell[1]
-			sub al, 30h
-			push bx
-			call calcCellIndex
-			xor edx, edx
-			mov dl, selectedCellIndex
-			pop bx
-			mov chessBoard[edx], bl
-
-			; Escribir la jugada en el archivo
-			call writeDataFile
-
-			call printInitialBoard
-			call waitForOpponent
-
-
+		customTextColor:
+			call setColor
+			mov eax,60
+			call clearColumn
+			jmp initMenu
 	endMenu:
 	ret
 menu endp
@@ -237,7 +250,7 @@ clearColumn proc			;Recibe por parametro la columna a limpiar en eax, el valor Y
 	mov ecx, 0
 	clearColumnLoop:
 		mGotoxy al,cl
-		mwritespace 30
+		mwritespace 50
 		inc ecx
 		cmp ecx, 30
 		jl clearColumnLoop
@@ -612,5 +625,109 @@ validateRow proc
 	mov al, 0
 	ret
 validateRow endp
+
+setColor proc
+	mov eax, 60
+	call clearColumn
+
+	; Primera columna en la columna 60
+	mGotoxy 60,3
+	mwrite "Seleccione el color del texto:"
+	mGotoxy 60,4
+	mwrite "1) Rojo"
+	mGotoxy 60,5
+	mwrite "2) Verde"
+	mGotoxy 60,6
+	mwrite "3) Azul"
+	mGotoxy 60,7
+	mwrite "4) Amarillo"
+	
+	; Segunda columna en la columna 70
+	mGotoxy 80,4
+	mwrite "5) Blanco"
+	mGotoxy 80,5
+	mwrite "6) Magenta"
+	mGotoxy 80,6
+	mwrite "7) Cian"
+	mGotoxy 80,7
+	mwrite "8) Celeste"
+
+	; Leer entrada del usuario
+	mGotoxy 60,10
+	mwrite "Opcion: "
+	call ReadDec  ; Leer número ingresado por el usuario (en eax)
+
+	; Comparar el input y cambiar el color del texto según la elección
+	cmp eax, 1
+	je setColorRed
+	cmp eax, 2
+	je setColorGreen
+	cmp eax, 3
+	je setColorBlue
+	cmp eax, 4
+	je setColorYellow
+	cmp eax, 5
+	je setColorWhite
+	cmp eax, 6
+	je setColorMagenta
+	cmp eax, 7
+	je setColorCyan
+	cmp eax, 8
+	je setColorLightBlue
+	jmp done
+
+	; Subrutinas para establecer colores
+	setColorRed:
+		mov eax, red
+		call SetTextColor
+		jmp done
+
+	setColorGreen:
+		mov eax, green
+		call SetTextColor
+		jmp done
+
+	setColorBlue:
+		mov eax, blue
+		call SetTextColor
+		jmp done
+
+	setColorYellow:
+		mov eax, yellow
+		call SetTextColor
+		jmp done
+
+	setColorWhite:
+		mov eax, white
+		call SetTextColor
+		jmp done
+
+	setColorMagenta:
+		mov eax, magenta
+		call SetTextColor
+		jmp done
+
+	setColorBlack:
+		mov eax, black+(white*16)
+		call SetTextColor
+		jmp done
+
+	setColorCyan:
+		mov eax, cyan
+		call SetTextColor
+		jmp done
+
+	setColorLightBlue:
+		mov eax, lightBlue
+		call SetTextColor
+		jmp done
+
+done:
+	call printInitialBoard
+	call printSidebar
+	call printBoard
+	ret
+setColor endp
+
 
 end main
