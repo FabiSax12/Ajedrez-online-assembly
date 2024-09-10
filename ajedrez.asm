@@ -239,6 +239,8 @@ menu proc
 menu endp
 
 waitForOpponent proc
+	mgotoxy 60,8
+	mwrite "Esperando movimiento del oponente..."
 
 	waiting:
 	mov eax, 1500
@@ -856,7 +858,7 @@ movePieceProcess proc
 
 		mGotoxy 60,6
 		mWrite "Moviendo "
-		mov dl, selectedCellIndex
+		movzx edx, selectedCellIndex
 		mov al, chessBoard[edx] ;acá se ha caído varias veces (no he identificado el porqué)
 		call writeChar
 
@@ -888,7 +890,9 @@ movePieceProcess proc
 		call writeDataFile
 
 		call printInitialBoard
+
 		call waitForOpponent
+
 	ret
 movePieceProcess endp
 
