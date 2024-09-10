@@ -802,12 +802,13 @@ reverse_loop:
 parseIntToString endp
 
 movePieceProcess proc
-	mov eax,60
-	call clearColumn
-	mGotoxy 60,3
-	mwrite "Posición de la ficha:"
-	mGotoxy 60,4
-	mwrite "Nueva posición:"
+	movement_init:
+		mov eax,60
+		call clearColumn
+		mGotoxy 60,3
+		mwrite "Posicion de la ficha:"
+		mGotoxy 60,4
+		mwrite "Nueva posicion:"
 
 	movement_input:
 
@@ -852,6 +853,14 @@ movePieceProcess proc
 			mWriteSpace 2
 			jmp movement_input
 
+		emptyCell:
+			mGotoxy 60,6
+			mWrite "No hay una pieza en la celda seleccionada"
+			mGotoxy 60,7
+			call WaitMsg
+
+			jmp movement_init
+
 	valid_movement:
 		mov ah, fromCell
 		mov al, fromCell[1]
@@ -862,6 +871,8 @@ movePieceProcess proc
 		mWrite "Moviendo "
 		movzx edx, selectedCellIndex
 		mov al, chessBoard[edx] ;acá se ha caído varias veces (no he identificado el porqué)
+		cmp al,"*"
+		je emptyCell
 		call writeChar
 
 		mWrite " desde "
