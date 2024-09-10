@@ -268,6 +268,8 @@ waitForOpponent proc
 	mov chessBoard[edx], bl
 
 	call printInitialBoard
+	mov eax, 60
+	call clearColumn
 	call menu
 
 waitForOpponent endp
