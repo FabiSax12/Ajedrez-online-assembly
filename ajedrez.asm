@@ -2,14 +2,13 @@ include irvine32.inc
 include Macros.inc
 
 .data
-	; Cloud Online Sync
-	cloudScript db "node index2.js"
-
+	; Cloud Online Sync With File
 	fileHandle handle ?
 	fileName byte "data.txt", 0			; Nombre del archivo de entrada
     buffer byte 256 DUP(?)				; Buffer para leer el archivo
     bytesRead dword ?					; Para almacenar los bytes leídos
 	playerId byte ?						; Para Sincronizar cual jugador juega primero (0 - 1)
+	gameId dword ?						; Id en la base de datos de la partida
 
 	; IU Components
 	letterCoords db		"________________________________________",10,
@@ -30,6 +29,33 @@ include Macros.inc
 	whiteCell db "     ", 10, 13,
 				 "     ", 10, 13,
 				 "     ", 10, 13, 0
+
+	hs	BYTE " ", 10, 13
+        BYTE " ", 10, 13
+		BYTE "___  ______  ______  ______  ______  ______  ______  ______  ______  ______  ______  ______  ______  ______  ______  ___", 10, 13
+        BYTE " __)(__  __)(__  __)(__  __)(__  __)(__  __)(__  __)(__  __)(__  __)(__  __)(__  __)(__  __)(__  __)(__  __)(__  __)(__ ", 10, 13
+        BYTE "(______)(______)(______)(______)(______)(______)(______)(______)(______)(______)(______)(______)(______)(______)(______)", 10, 13
+        BYTE " ", 10, 13
+        BYTE " ", 10, 13
+		BYTE " ", 10, 13
+        BYTE "                                (\=,",10,13
+        BYTE "                              //  .\                                               |'-'-'|", 10, 13
+        BYTE "                             (( \_  \        _____ _    _ ______  _____ _____      |_____|", 10, 13
+        BYTE "                              ))  `\_)      / ____| |  | |  ____|/ ____/ ____|      |===|", 10 ,13
+		BYTE "                             (/     \      | |    | |__| | |__  | (___| (___        |   |", 10, 13 
+        BYTE "                              | _.-'|      | |    |  __  |  __|  \___ \\___ \       |   |", 10, 13
+        BYTE "                               )___(       | |____| |  | | |____ ____) |___) |      )___(", 10, 13
+		BYTE "                              (=====)       \_____|_|  |_|______|_____/_____/      (=====)", 10, 13
+        BYTE "                              }====={                                              }====={", 10, 13
+        BYTE "                             (_______)                                            (_______)", 10, 13                  
+        BYTE " ", 10, 13
+		BYTE "                                       (-----------)                (-----------)", 10, 13
+        BYTE "                                       |   Nueva   |                |  Cargar   |", 10, 13
+        BYTE "                                       |  partida  |                |  partida  |", 10, 13
+        BYTE "                                       (-----------)                (-----------)", 10, 13
+		BYTE "___  ______  ______  ______  ______  ______  ______  ______  ______  ______  ______  ______  ______  ______  ______  ___", 10, 13
+        BYTE " __)(__  __)(__  __)(__  __)(__  __)(__  __)(__  __)(__  __)(__  __)(__  __)(__  __)(__  __)(__  __)(__  __)(__  __)(__ ", 10, 13
+        BYTE "(______)(______)(______)(______)(______)(______)(______)(______)(______)(______)(______)(______)(______)(______)(______)", 10, 13, 0
 
 	; Chess board position data
 	chessBoard	byte  "R", "N", "B", "Q", "K", "B", "N", "R"  ; Fila 1 - Negras (A1 a H1)
@@ -61,14 +87,102 @@ include Macros.inc
 	;User inputs
 	fromCell byte 2 DUP(0),0
 	toCell byte 2 DUP(0),0
+	jugador1 byte 30 DUP(?)
+	jugador2 byte 30 DUP(?)
+
+
+
 
 .code
 main proc
+	
+	lea edx, hs
+	call writestring
 
-	; to-do Pantalla inicial
-	; to-do asignar jugador
-	mov playerId, 0
+	; Se presentan 2 opciones:
+	; - Nueva Partida
+	;	- Uno debe crear partida, lo cual genera un id unico y crea la partida en la base de datos.
+	;	- El otro con ese id se puede unir.
+	; 
+	; - Cargar Partida
+	;	- Ambos se unenen con el id de la partida
 
+    call ReadChar
+    cmp al, "1"
+	je newGame
+    cmp al, "2"
+	je continueGame
+
+	newGame:
+		call Clrscr
+
+		; Al ser el jugador que creo la partida sera el jugador 0
+		mov playerId, 0
+	
+		call getMSeconds	; Generar un id
+		mov gameId, eax		; Guardarlo
+
+		; Subirlo a la base de datos
+		call UploadGameId
+
+		mWrite "El id de la nueva partida es: "
+		mov eax, gameId
+		call writeInt
+		call Crlf
+		mWrite "Compartelo con el otro jugador para que pueda unirse"
+		call Crlf
+		mWrite "Esperando al oponente..."
+
+		call setOnline
+
+		jmp wait_for_opponent_online  
+
+	continueGame:
+		call Clrscr
+
+		mWrite "Id de la partida: "
+		call readInt
+		mov gameId, eax
+
+		; Al ser el jugador que se unió, será el jugador 1
+		mov playerId, 1
+		jmp start_game
+
+
+		
+	registroUsuarios:
+		call Clrscr
+
+		mWrite "Ingrese el nickname del jugador 1: "
+		mov edx, OFFSET jugador1	; Dirección del buffer
+		mov ecx, 30					; Longitud máxima de la cadena
+		call ReadString				; Llamada para leer la cadena
+
+		call Clrscr
+
+		mWrite "Ingrese el nickname del jugador 2: "
+		mov edx, OFFSET jugador2	; Dirección del buffer
+		mov ecx, 30					; Longitud máxima de la cadena
+		call ReadString				; Llamada para leer la cadena
+
+		call Clrscr              ; Limpia la pantalla
+
+
+
+
+	wait_for_opponent_online:
+		mov eax, 2000
+		call delay
+
+		call ReadDataFile
+		call verifyOpponentIsOnline
+		test eax, 1
+		jz wait_for_opponent_online
+		jnz start_game
+
+
+	start_game:
+	call clrscr
 	call printInitialBoard
 	call printSidebar
 	call menu
@@ -456,6 +570,109 @@ getLastMove proc
 		ret
 getLastMove endp
 
+uploadGameId proc
+
+	lea edx, fileName
+	call CreateOutputFile
+	mov fileHandle, eax
+	jc fileError
+
+	mov eax, gameId
+	lea edx, buffer
+	call parseIntToString
+
+	mov eax, fileHandle
+	lea edx, buffer
+	add ecx, 8
+	call WriteToFile
+	mov eax, fileHandle
+	call CloseFile
+
+	fileError:
+	ret
+
+uploadGameId endp
+
+setOnline proc
+
+	lea edx, fileName
+	call CreateOutputFile
+	mov fileHandle, eax
+	jc fileError
+
+	cmp playerId, 0
+	jne player_1
+	je player_0
+
+	player_0:
+		mov buffer[8], ","
+		mov buffer[9], "1"
+
+		cmp buffer[11], "0"
+		je upload_changes
+		cmp buffer[11], "1"
+		je upload_changes
+
+		; Si el del otro jugador no es ni 0 ni 1, etonces lo ponemos a 0
+		mov buffer[10], ","
+		mov buffer[11], "0"
+		mov buffer[12], 13
+		mov buffer[13], 10
+
+		jmp upload_changes
+
+	player_1:
+		mov buffer[10], ","
+		mov buffer[11], "1"
+		mov buffer[12], 13
+		mov buffer[13], 10
+
+		cmp buffer[9], "0"
+		je upload_changes
+		cmp buffer[9], "1"
+		je upload_changes
+
+		; Si el del otro jugador no es ni 0 ni 1, etonces lo ponemos a 0
+		mov buffer[8], ","
+		mov buffer[9], "0"
+
+	upload_changes:
+	mov eax, fileHandle
+	lea edx, buffer
+	mov ecx, 12
+	call WriteToFile
+	mov eax, fileHandle
+	call CloseFile
+
+	fileError:
+	ret
+
+setOnline endp
+
+verifyOpponentIsOnline proc
+	cmp playerId, 0
+	je player_1
+	jne player_0
+
+	player_0:
+	cmp buffer[9], "1"
+	je online
+	jmp offline
+
+	player_1:
+	cmp buffer[11], "1"
+	je online
+	jmp offline
+
+	online:
+	mov eax, 1
+	ret
+
+	offline:
+	mov eax, 0
+	ret
+verifyOpponentIsOnline endp
+
 printSidebar proc
 	pusha
 	xor edx,edx
@@ -612,5 +829,49 @@ validateRow proc
 	mov al, 0
 	ret
 validateRow endp
+
+
+parseIntToString proc
+	; Args:
+	; - eax: number
+	; - edx: buffer
+	LOCAL resPtr:DWORD
+	LOCAL bufferLocal[11]:BYTE
+	LOCAL tempBuffer[11]:BYTE
+
+	mov resPtr, edx
+    
+    mov ecx, 0                 ; Contador para la longitud de la cadena
+
+convert_loop:
+    xor edx, edx               ; Limpia edx antes de la división
+	mov ebx, 10
+    div ebx		               ; Divide EAX entre 10, el cociente queda en EAX, el resto en EDX (el dígito)
+    add dl, 30h                ; Convierte el dígito (EDX) a su equivalente ASCII
+    mov tempBuffer[ecx], dl    ; Guarda el dígito en el buffer temporal
+    inc ecx                    ; Aumenta la posición en el buffer
+    test eax, eax              ; Verifica si EAX es 0
+    jnz convert_loop           ; Si no es 0, sigue dividiendo
+
+    push ecx            ; Guarda la longitud de la cadena
+
+    ; Invertir el buffer temporal y almacenarlo en el buffer final
+    lea esi, tempBuffer			; Puntero al inicio del buffer temporal
+    mov edi, resPtr        ; Puntero al inicio del buffer final
+    pop ecx						; Cargar la longitud de la cadena
+
+reverse_loop:
+    dec ecx                    ; Decrementa ecx para obtener la posición correcta
+    mov al, tempBuffer[ecx]    ; Carga el dígito invertido
+    mov [edi], al              ; Mueve el dígito al buffer final
+    inc edi                    ; Avanza el puntero en el buffer
+    test ecx, ecx              ; Verifica si hemos terminado
+    jnz reverse_loop           ; Si no es 0, sigue
+
+    mov BYTE PTR [edi], 0      ; Termina la cadena con un carácter nulo
+
+	ret
+
+parseIntToString endp
 
 end main
