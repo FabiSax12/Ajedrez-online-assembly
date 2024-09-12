@@ -75,8 +75,8 @@ async function login() {
     return;
   }
 
-  console.log("Player logged in successfully");
-  writeFileSync("data.txt", "1"); // Responder a assembly
+  console.log("Player logged in successfully", data.id.toString());
+  writeFileSync("data.txt", data.id.toString()); // Responder a assembly
 }
 
 async function create_game() {
@@ -138,7 +138,7 @@ async function join_game() {
   if (gameRes.data[0].player_1 == user_id) {
     player_turn = 0;
   }
-  else if (gameRes.data[0].player_2 == null) {
+  else if (gameRes.data[0].player_2 == null || gameRes.data[0].player_2 == user_id) {
     player_turn = 1;
     const res = await supabase.from("games").update({ player_2: user_id }).eq("id", game_id)
     // Manejar errores
@@ -163,14 +163,32 @@ async function join_game() {
   }
 
   console.log("User online status updated successfully");
-  writeFileSync("data.txt", "1"); // Responder a assembly
+
+  // Traer los movimientos de la base de datos
+  const movementsRes = await supabase.from("movements").select("*").eq("game_id", game_id)
+
+  let fileRes = "1\r\n" + game_id + "," + user_id + "\r\n";
+  for (const movement of movementsRes.data) {
+    fileRes += Adapter.toFileRow(movement) + "\r\n";
+    movesCount++;
+  }
+
+  if (movementsRes.data.at(-1).player == player_turn) {
+    ignoreDatabaseChange = false;
+    ignoreFileChange = true;
+  } else {
+    ignoreDatabaseChange = true;
+    ignoreFileChange = false;
+  }
+
+  writeFileSync("data.txt", fileRes); // Responder a assembly
 }
 
 async function playing() {
   const file = readFileSync("data.txt", "utf-8");
   if (!file) return;
 
-  const [_, meta] = file.split("\n");
+  const [_, meta, ...moves] = file.split("\n");
   const game_id = meta.split(",")[0];
   const player_id = meta.split(",")[1];
 
@@ -182,12 +200,13 @@ async function playing() {
   }
 
   // Determinar si fue el turno del jugador o del oponente 0,1,0 => 1
-  if (gameDB.data[0].player_1 == player_id) {
-    player_turn = 0;
+  if (gameDB.data[0].player_1 == player_id) player_turn = 0;
+  else player_turn = 1;
+
+  if (moves.length == 0 || moves.at(-1).split(",")[0] != player_turn) {
     ignoreDatabaseChange = true;
     ignoreFileChange = false;
   } else {
-    player_turn = 1;
     ignoreDatabaseChange = false;
     ignoreFileChange = true;
   }
@@ -282,7 +301,7 @@ async function watchDB(game_id) {
 
 async function main() {
   const instruction = getInstruction();
-  if (!instruction) return;
+  if (!instruction || instruction.length <= 2) return;
 
   console.log("Instruction received:", instruction);
 
