@@ -113,7 +113,7 @@ main proc
     cmp al, "1"
 	je newGame
     cmp al, "2"
-	je continueGame
+	je loadGame
 
 	newGame:
 		call Clrscr
@@ -139,37 +139,23 @@ main proc
 
 		jmp wait_for_opponent_online  
 
-	continueGame:
+	loadGame:
 		call Clrscr
 
 		mWrite "Id de la partida: "
 		call readInt
 		mov gameId, eax
 
+		; Cargarlo en el archivo
+		call UploadGameId
+
 		; Al ser el jugador que se unió, será el jugador 1
 		mov playerId, 1
+		call setOnline
+
+		call readFromFile
+
 		jmp start_game
-
-
-		
-	registroUsuarios:
-		call Clrscr
-
-		mWrite "Ingrese el nickname del jugador 1: "
-		mov edx, OFFSET jugador1	; Dirección del buffer
-		mov ecx, 30					; Longitud máxima de la cadena
-		call ReadString				; Llamada para leer la cadena
-
-		call Clrscr
-
-		mWrite "Ingrese el nickname del jugador 2: "
-		mov edx, OFFSET jugador2	; Dirección del buffer
-		mov ecx, 30					; Longitud máxima de la cadena
-		call ReadString				; Llamada para leer la cadena
-
-		call Clrscr              ; Limpia la pantalla
-
-
 
 
 	wait_for_opponent_online:
