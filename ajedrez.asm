@@ -57,6 +57,8 @@ include Macros.inc
         BYTE " __)(__  __)(__  __)(__  __)(__  __)(__  __)(__  __)(__  __)(__  __)(__  __)(__  __)(__  __)(__  __)(__  __)(__  __)(__ ", 10, 13
         BYTE "(______)(______)(______)(______)(______)(______)(______)(______)(______)(______)(______)(______)(______)(______)(______)", 10, 13, 0
 
+	playerPieces db "prnbqk",0		; Piezas de los jugadores (Peón, Torre, Caballo, Alfil, Reina, Rey)
+
 	; Chess board position data
 	chessBoard	byte  "R", "N", "B", "Q", "K", "B", "N", "R"  ; Fila 1 - Negras (A1 a H1)
 				byte  "P", "P", "P", "P", "P", "P", "P", "P"  ; Fila 2 - Peones negros (A2 a H2)
@@ -295,8 +297,6 @@ getXY PROC ;Obtiene la posición actual del cursor en la consola {1}
 	mov lastY, al
 	ret
 getXY ENDP
-
-
 
 printCharacter proc
 	; Args:
@@ -802,6 +802,10 @@ reverse_loop:
 parseIntToString endp
 
 movePieceProcess proc
+	cmp playerId,0
+	jne movement_init
+	INVOKE Str_ucase, ADDR playerPieces
+
 	movement_init:
 		mov eax,60
 		call clearColumn
@@ -815,6 +819,7 @@ movePieceProcess proc
 		; Desde cual celda quiere mover ------------------------
 		mGotoxy 82, 3
 		mReadString fromCell
+		INVOKE Str_ucase, ADDR fromCell
 		; Validar columna (A - H)
 		mov dl, fromCell
 		call validateColumn
@@ -829,6 +834,7 @@ movePieceProcess proc
 		; Hacia cual celda quiere mover ------------------------
 		mGotoxy 76, 4
 		mReadString toCell
+		INVOKE Str_ucase, ADDR toCell
 		; Validar columna (A - H)
 		mov dl, toCell
 		call validateColumn
@@ -861,6 +867,14 @@ movePieceProcess proc
 
 			jmp movement_init
 
+		invalidMove:
+			mGotoxy 60,6
+			mWrite "Movimiento invalido"
+			mGotoxy 60,7
+			call WaitMsg
+
+			jmp movement_init
+
 	valid_movement:
 		mov ah, fromCell
 		mov al, fromCell[1]
@@ -873,31 +887,46 @@ movePieceProcess proc
 		mov al, chessBoard[edx] ;acá se ha caído varias veces (no he identificado el porqué)
 		cmp al,"*"
 		je emptyCell
-		call writeChar
+		;---	
 
-		mWrite " desde "
-		lea edx, fromCell
-		call writeString
+		; Verificar si es un peón y validar su movimiento
+		cmp al, playerPieces[0]; Pregunta si la pieza seleccionada es igual a un peon
+		je callPawnValidation
+		; Falta agregar validaciones de otras piezas (torres, caballos, etc.)
+		jmp continueMove
 
-		mWrite " hacia "
-		lea edx, toCell
-		call writeString
+		callPawnValidation:
+			; Configurar parámetros para validar el movimiento del peón
+			call validatePawnMove ; Llamada al procedimiento de validación
+			cmp al, 0             ; Validación fallida?
+			je invalidMove        ; Si no es válido, regresar a entrada de movimiento
+		;---
+		continueMove:
+			call writeChar
 
-		; Mover ya en la matriz y mostrar el movimiento
-		xor edx, edx
-		mov dl, selectedCellIndex
-		mov bl, chessBoard[edx]		; Guardar pieza
-		mov chessBoard[edx], "*"	; Borrar de donde estaba
+			mWrite " desde "
+			lea edx, fromCell
+			call writeString
 
-		mov ah, toCell
-		mov al, toCell[1]
-		sub al, 30h
-		push bx
-		call calcCellIndex
-		xor edx, edx
-		mov dl, selectedCellIndex
-		pop bx
-		mov chessBoard[edx], bl
+			mWrite " hacia "
+			lea edx, toCell
+			call writeString
+
+			; Mover ya en la matriz y mostrar el movimiento
+			xor edx, edx
+			movzx edx, selectedCellIndex
+			mov bl, chessBoard[edx]		; Guardar pieza
+			mov chessBoard[edx], "*"	; Borrar de donde estaba
+
+			mov ah, toCell
+			mov al, toCell[1]
+			sub al, 30h
+			push bx
+			call calcCellIndex
+			xor edx, edx
+			mov dl, selectedCellIndex
+			pop bx
+			mov chessBoard[edx], bl
 
 		; Escribir la jugada en el archivo
 		call writeDataFile
@@ -908,6 +937,126 @@ movePieceProcess proc
 
 	ret
 movePieceProcess endp
+
+validatePawnMove proc
+	cmp playerId, 0			;SI el player id es 0, entonces este juega con las piezas negras(en mayúscula)
+	;je validateWhitePawn
+	xor eax,eax
+
+	validateBlackPawn:
+		; Peón negro: fila debe aumentar en 1 o 2 (primer movimiento)
+		mov al, fromCell[1]
+		sub al, toCell[1]    ; Comparar filas
+		call absolute
+		cmp al, 1			 ; Si el desplazamiento es 1, validar captura o movimiento normal
+		je checkBlackCapture ; Verificar si hay captura
+		cmp al, 2			 ; En caso de que se desplace 2 filas...
+		je checkFirstMove	 ; Verificar que sea el primer movimiento
+		jmp invalidMove		 ; Si no es niguno de los casos anteriores, el movimiento es invalido ;Revisado*(quitar esto)
+
+	checkBlackCapture:
+		; Movimiento diagonal para captura
+		mov al, fromCell[0]
+		sub al, toCell[0]    ; Comparar columnas (debe ser una casilla en diagonal) B->C or A<-B la distancia debe de ser 1
+		call absolute
+		cmp al, 1
+		jne checkForwardMove  ; Si no es diagonal, verificar movimiento normal
+
+		; Verificar si hay una pieza enemiga para capturar
+		mov ah, toCell[0]
+		mov al, toCell[1]
+		sub al,30h
+		call calcCellIndex
+		movzx edi,selectedCellIndex
+		mov al, chessBoard[edi]
+		cmp al, '*'        ; La casilla no puede estar vacía para una captura
+		je invalidMove
+		cmp al, 'a'        ; Verificar que sea una pieza blanca (minúscula)
+		jb invalidMove
+		cmp al, 'z'
+		ja invalidMove 
+
+		; Captura válida
+		mov al, 1
+		jmp endPawnValidation 
+
+	checkForwardMove:
+		; Verificar movimiento hacia adelante (columna igual)
+		mov al, fromCell[0]
+		cmp al, toCell[0]
+		jne invalidMove
+
+		; Verificar que la casilla de destino esté vacía
+		mov ah, toCell[0]
+		mov al, toCell[1]
+		sub al,30h
+		call calcCellIndex
+		movzx edi,selectedCellIndex
+		mov al, chessBoard[edi]
+		cmp al, '*'
+		jne invalidMove
+
+		; Movimiento válido hacia adelante
+		mov al, 1
+		jmp endPawnValidation													;Revisado*(quitar esto)----------------------------------
+
+	checkFirstMove:
+		; Primer movimiento: debe estar en fila 2
+		mov al, fromCell[1]
+		cmp al, '2'
+		jne invalidMove
+
+		; Verificar que las dos casillas estén vacías
+		mov ah, toCell[0]
+		mov al, toCell[1]
+		sub al,30h
+		call calcCellIndex
+		movzx edi,selectedCellIndex
+		mov al, chessBoard[edi]
+		cmp al, '*'
+		jne invalidMove
+
+		; Verificar movimiento hacia adelante (columna igual)
+		mov al, fromCell[0]
+		cmp al, toCell[0]
+		jne invalidMove
+
+		; Casilla intermedia también debe estar vacía
+		mov ah, fromCell[0]
+		mov al, fromCell[1]
+		sub al,30h
+		call calcCellIndex
+		movzx edi,selectedCellIndex
+		add edi, 8h
+		mov al, chessBoard[edi]
+		cmp al, '*'
+		jne invalidMove
+
+		; Movimiento válido de dos casillas
+		mov al, 1
+		jmp endPawnValidation
+
+	invalidMove:
+		; Movimiento inválido
+		mov al, 0
+
+	endPawnValidation:
+		ret
+validatePawnMove endp
+
+absolute proc
+	; Args:
+	;	Recibe el valor al que se le desea calcular el valor absoluto en AL
+
+	test al, al           ; Si el bit más significativo (MSB) está en 1, es negativo
+	jns absolute_end      ; Si no es negativo, no hay nada que hacer
+
+	; Si es negativo, hacemos el complemento a dos para invertir el signo
+	neg al                ; AL = -AL (inversión del signo)
+
+	absolute_end:
+		ret
+absolute endp
 
 setColor proc
 	mov eax, 60
@@ -1011,6 +1160,4 @@ done:
 	call printBoard
 	ret
 setColor endp
-
-
 end main
