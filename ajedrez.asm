@@ -900,6 +900,10 @@ movePieceProcess proc
 
 			; Mover ya en la matriz y mostrar el movimiento
 			xor edx, edx
+			mov ah, fromCell[0]
+			mov al, fromCell[1]
+			sub al,30h
+			call calcCellIndex
 			movzx edx, selectedCellIndex
 			mov bl, chessBoard[edx]		; Guardar pieza
 			mov chessBoard[edx], "*"	; Borrar de donde estaba
