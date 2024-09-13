@@ -914,6 +914,10 @@ movePieceProcess proc
 
 			; Mover ya en la matriz y mostrar el movimiento
 			xor edx, edx
+			mov ah, fromCell[0]
+			mov al, fromCell[1]
+			sub al,30h
+			call calcCellIndex
 			movzx edx, selectedCellIndex
 			mov bl, chessBoard[edx]		; Guardar pieza
 			mov chessBoard[edx], "*"	; Borrar de donde estaba
@@ -938,7 +942,7 @@ movePieceProcess proc
 	ret
 movePieceProcess endp
 
-validatePawnMove proc
+validatePawnMove proc ;Hay que revisar el flujo de este código!!!
 	cmp playerId, 0			;SI el player id es 0, entonces este juega con las piezas negras(en mayúscula)
 	;je validateWhitePawn
 	xor eax,eax
@@ -992,15 +996,17 @@ validatePawnMove proc
 		sub al,30h
 		call calcCellIndex
 		movzx edi,selectedCellIndex
+
+
+
 		mov al, chessBoard[edi]
 		cmp al, '*'
 		jne invalidMove
 
 		; Movimiento válido hacia adelante
 		mov al, 1
-		jmp endPawnValidation													;Revisado*(quitar esto)----------------------------------
-
-	checkFirstMove:
+		jmp endPawnValidation													
+		checkFirstMove:
 		; Primer movimiento: debe estar en fila 2
 		mov al, fromCell[1]
 		cmp al, '2'
