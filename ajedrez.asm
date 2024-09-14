@@ -7,7 +7,7 @@ include Macros.inc
 	fileName byte "data.txt", 0			; Nombre del archivo de entrada
     buffer byte 256 DUP(?)				; Buffer para leer el archivo
 	auxBuffer byte 256 DUP(?)			; Buffer para auxiliar el principal
-    bytesRead dword ?					; Para almacenar los bytes leídos
+    bytesRead dword ?					; Para almacenar los bytes leÃ­dos
 	turn byte ?							; Para Sincronizar cual jugador juega primero (0 - 1)
 	gameId dword ?						; Id en la base de datos de la partida
 	playerId byte ?						; Id del jugador en la base de datos
@@ -122,15 +122,15 @@ include Macros.inc
 		BYTE "		    (__  _ )(__  _ )(__   _)(_   __)( _  __)(_   __)(__   _)(__   _)(_   __)( _  __)",10 ,13
 		BYTE "		    (__)(______)(______)(______)(______)(______)(______)(______)(______)(______)(__)",10 ,13, 0
 
-	playerPieces db "prnbqk",0		; Piezas de los jugadores (Peón, Torre, Caballo, Alfil, Reina, Rey)
+	playerPieces db "prnbqk",0		; Piezas de los jugadores (PeÃ³n, Torre, Caballo, Alfil, Reina, Rey)
 
 	; Chess board position data
 	chessBoard	byte  "R", "N", "B", "Q", "K", "B", "N", "R"  ; Fila 1 - Negras (A1 a H1)
 				byte  "P", "P", "P", "P", "P", "P", "P", "P"  ; Fila 2 - Peones negros (A2 a H2)
-				byte  "*", "*", "*", "*", "*", "*", "*", "*"  ; Fila 3 - Vacío (A3 a H3)
-				byte  "*", "*", "*", "*", "*", "*", "*", "*"  ; Fila 4 - Vacío (A4 a H4)
-				byte  "*", "*", "*", "*", "*", "*", "*", "*"  ; Fila 5 - Vacío (A5 a H5)
-				byte  "*", "*", "*", "*", "*", "*", "*", "*"  ; Fila 6 - Vacío (A6 a H6)
+				byte  "*", "*", "*", "*", "*", "*", "*", "*"  ; Fila 3 - VacÃ­o (A3 a H3)
+				byte  "*", "*", "*", "*", "*", "*", "*", "*"  ; Fila 4 - VacÃ­o (A4 a H4)
+				byte  "*", "*", "*", "*", "*", "*", "*", "*"  ; Fila 5 - VacÃ­o (A5 a H5)
+				byte  "*", "*", "*", "*", "*", "*", "*", "*"  ; Fila 6 - VacÃ­o (A6 a H6)
 				byte  "p", "p", "p", "p", "p", "p", "p", "p"  ; Fila 7 - Peones blancos (A7 a H7)
 				byte  "r", "n", "b", "q", "k", "b", "n", "r", 0   ; Fila 8 - Blancas (A8 a H8)
 
@@ -145,7 +145,7 @@ include Macros.inc
 	j db 0
 
 	;estructura de la Api de Windows para almacenar las coordenadas del cuirsor en x,y {1}
-	;(código extraído de "https://stackoverflow.com/questions/50589401/how-to-get-current-cursor-position-in-masm")
+	;(cÃ³digo extraÃ­do de "https://stackoverflow.com/questions/50589401/how-to-get-current-cursor-position-in-masm")
     BufferInfo CONSOLE_SCREEN_BUFFER_INFO <>
 
 	;Error messages
@@ -352,14 +352,14 @@ main proc
 		mov edi, offset buffer
 		call writeToEndOfBuffer
 
-		; Leer Contraseña
+		; Leer ContraseÃ±a
 		mGotoxy 52, 20
 		mReadString auxBuffer
 		mov esi, offset auxBuffer
 		mov edi, offset buffer
 		call writeToEndOfBuffer
 
-		; Añadir al archivo
+		; AÃ±adir al archivo
 		call writeFileHeader
 		jmp wait_for_login
 
@@ -406,14 +406,14 @@ main proc
 		mov edi, offset buffer
 		call writeToEndOfBuffer
 
-		; Leer Contraseña
+		; Leer ContraseÃ±a
 		mGotoxy 52, 20
 		mReadString auxBuffer
 		mov esi, offset auxBuffer
 		mov edi, offset buffer
 		call writeToEndOfBuffer
 
-		; Añadir al archivo
+		; AÃ±adir al archivo
 		call writeFileHeader
 		jmp wait_for_login
 
@@ -568,13 +568,13 @@ clearColumn proc			;Recibe por parametro la columna a limpiar en eax, el valor Y
 	ret
 clearColumn endp
 
-getXY PROC ;Obtiene la posición actual del cursor en la consola {1}
-    invoke GetStdHandle, STD_OUTPUT_HANDLE						 ; Invoca la función GetStdHandle para obtener el manejador de la consola de salida estándar (STD_OUTPUT_HANDLE)
-    invoke GetConsoleScreenBufferInfo, eax, ADDR BufferInfo      ; Invoca la función GetConsoleScreenBufferInfo para obtener información sobre el búfer de pantalla de la consola.
-    movzx eax, BufferInfo.dwCursorPosition.X					 ; Obtiene la coordenada X (columna) de la posición del cursor desde la estructura BufferInfo.
+getXY PROC ;Obtiene la posiciÃ³n actual del cursor en la consola {1}
+    invoke GetStdHandle, STD_OUTPUT_HANDLE						 ; Invoca la funciÃ³n GetStdHandle para obtener el manejador de la consola de salida estÃ¡ndar (STD_OUTPUT_HANDLE)
+    invoke GetConsoleScreenBufferInfo, eax, ADDR BufferInfo      ; Invoca la funciÃ³n GetConsoleScreenBufferInfo para obtener informaciÃ³n sobre el bÃºfer de pantalla de la consola.
+    movzx eax, BufferInfo.dwCursorPosition.X					 ; Obtiene la coordenada X (columna) de la posiciÃ³n del cursor desde la estructura BufferInfo.
 	mov lastX, al
     ;call WriteInt
-    movzx eax, BufferInfo.dwCursorPosition.Y					 ; Obtiene la coordenada Y (fila) de la posición del cursor desde la estructura BufferInfo.	
+    movzx eax, BufferInfo.dwCursorPosition.Y					 ; Obtiene la coordenada Y (fila) de la posiciÃ³n del cursor desde la estructura BufferInfo.	
 	mov lastY, al
 	ret
 getXY ENDP
@@ -587,7 +587,7 @@ calcCellIndex proc
 	; Return:
 	; - selectedCellIndex: cell index
 
-	sub ah, 65       ; Pasa de ASCII ("A": 65 - "H": 72) a número (0 - 7)
+	sub ah, 65       ; Pasa de ASCII ("A": 65 - "H": 72) a nÃºmero (0 - 7)
 	sub al, 1
 
 	; Calculate the index of the cell
@@ -610,11 +610,11 @@ readDataFile proc
     jc fileError                ; Si hay un error, salta a la etiqueta fileError
 
     ; Leer el contenido del archivo
-    mov edx, OFFSET buffer      ; Almacenar datos leídos en el buffer
-    mov ecx, SIZEOF buffer      ; Máximo tamaño a leer
+    mov edx, OFFSET buffer      ; Almacenar datos leÃ­dos en el buffer
+    mov ecx, SIZEOF buffer      ; MÃ¡ximo tamaÃ±o a leer
     call ReadFromFile
     jc fileError                ; Si hay un error, salta a la etiqueta fileError
-    mov bytesRead, eax          ; Guardar el número de bytes leídos
+    mov bytesRead, eax          ; Guardar el nÃºmero de bytes leÃ­dos
 
     ; Cerrar el archivo de entrada
 	mov eax, fileHandle
@@ -729,17 +729,17 @@ getLastMove proc
 	; - ax: Desde (ah: Columna | al: fila)
 	; - bx: Hacia (ah: Columna | al: fila)
 
-	mov esi, OFFSET buffer       ; Cargar la dirección del buffer en esi
-    mov edi, OFFSET buffer       ; Cargar la dirección del buffer en edi
-    add esi, LENGTHOF buffer - 2 ; Posicionar el puntero antes del último '\n'
+	mov esi, OFFSET buffer       ; Cargar la direcciÃ³n del buffer en esi
+    mov edi, OFFSET buffer       ; Cargar la direcciÃ³n del buffer en edi
+    add esi, LENGTHOF buffer - 2 ; Posicionar el puntero antes del Ãºltimo '\n'
 
-    ; Retrocede hasta encontrar el salto de línea '\n' que precede la última línea
+    ; Retrocede hasta encontrar el salto de lÃ­nea '\n' que precede la Ãºltima lÃ­nea
     mov ecx, LENGTHOF buffer     ; Usamos ecx como contador
 	find_end_string:
 		cmp ecx, 24
 		jl not_found
 		cmp BYTE PTR [esi], 0Ah      ; 0Ah es '\n' en ASCII
-		je found_end                 ; Si es '\n', encontramos el inicio de la última línea
+		je found_end                 ; Si es '\n', encontramos el inicio de la Ãºltima lÃ­nea
 		dec esi                      ; Retrocede el puntero
 	loop find_end_string
 
@@ -748,26 +748,26 @@ getLastMove proc
 		ret
 
 	found_end:
-		sub esi, 8					; Mueve el puntero al inicio de la última línea
+		sub esi, 8					; Mueve el puntero al inicio de la Ãºltima lÃ­nea
 
 		; Ahora extraemos los valores separados por comas
 		; Primer valor (antes de la primera coma) en DL
-		mov dl, [esi]                ; Primer valor numérico (char) en dl
+		mov dl, [esi]                ; Primer valor numÃ©rico (char) en dl
 		inc esi                      ; Avanza el puntero
 
 		inc esi						; Saltar la coma
     
 		; Segundo valor (cadena antes de la segunda coma) en AX
-		mov ah, [esi]                ; Almacena el primer carácter de la segunda cadena en AL
-		mov al, [esi+1]              ; Almacena el segundo carácter en AH
+		mov ah, [esi]                ; Almacena el primer carÃ¡cter de la segunda cadena en AL
+		mov al, [esi+1]              ; Almacena el segundo carÃ¡cter en AH
 		add esi, 2                   ; Avanza 2 posiciones
     
 		; Salta la coma
 		inc esi                      ; Salta la coma ','
 
-		; Tercer valor (cadena antes del final de línea) en BX
-		mov bh, [esi]                ; Almacena el primer carácter de la tercera cadena en BL
-		mov bl, [esi+1]              ; Almacena el segundo carácter en BH
+		; Tercer valor (cadena antes del final de lÃ­nea) en BX
+		mov bh, [esi]                ; Almacena el primer carÃ¡cter de la tercera cadena en BL
+		mov bl, [esi+1]              ; Almacena el segundo carÃ¡cter en BH
 
 		sub bl, 30h
 		sub al, 30h
@@ -838,10 +838,10 @@ setInstruction proc
 	mov edi, offset buffer
 
 	inserting:
-		mov al, [esi]                       ; Cargar carácter de la nueva cadena
+		mov al, [esi]                       ; Cargar carÃ¡cter de la nueva cadena
         mov [edi], al                       ; Insertar en el buffer
-        inc esi                             ; Siguiente carácter en la nueva cadena
-        inc edi                             ; Siguiente posición en el buffer
+        inc esi                             ; Siguiente carÃ¡cter en la nueva cadena
+        inc edi                             ; Siguiente posiciÃ³n en el buffer
 	loop inserting
 
 	ret
@@ -856,15 +856,15 @@ shiftRight proc
 	mov edi, offset auxBuffer
 
 	L1:
-        mov al, [esi]                       ; Cargar el carácter actual
-        cmp al, 0                           ; ¿Es el fin de la cadena?
+        mov al, [esi]                       ; Cargar el carÃ¡cter actual
+        cmp al, 0                           ; Â¿Es el fin de la cadena?
         je  EndLoad                         ; Si es 0, terminar
         mov [edi], al                       ; Copiar al buffer
-        inc esi                             ; Siguiente carácter
-        inc edi                             ; Siguiente posición en buffer
+        inc esi                             ; Siguiente carÃ¡cter
+        inc edi                             ; Siguiente posiciÃ³n en buffer
         jmp L1                              ; Repetir el ciclo
     EndLoad:
-        mov byte ptr [edi], 0               ; Añadir terminador nulo al final
+        mov byte ptr [edi], 0               ; AÃ±adir terminador nulo al final
 		cmp ebx, 0
 		je salir
 
@@ -881,25 +881,25 @@ shiftRight endp
 
 shiftLeft PROC
     ; Args:
-    ; ecx: cantidad de espacios a desplazar (número de caracteres a eliminar)
+    ; ecx: cantidad de espacios a desplazar (nÃºmero de caracteres a eliminar)
     ;
     ; Desplaza el contenido del buffer hacia la izquierda, eliminando los primeros `ecx` caracteres.
 
     mov esi, offset buffer           ; ESI apunta al inicio del buffer
-    add esi, ecx                     ; ESI ahora apunta al primer carácter después del desplazamiento
+    add esi, ecx                     ; ESI ahora apunta al primer carÃ¡cter despuÃ©s del desplazamiento
     mov edi, offset buffer           ; EDI apunta al inicio del buffer (donde vamos a mover los datos)
 
 L1:
-    mov al, [esi]                    ; Cargar carácter actual desde la posición desplazada
-    cmp al, 0                        ; ¿Es el final de la cadena?
+    mov al, [esi]                    ; Cargar carÃ¡cter actual desde la posiciÃ³n desplazada
+    cmp al, 0                        ; Â¿Es el final de la cadena?
     je EndShift                      ; Si es el final, salir del bucle
-    mov [edi], al                    ; Mover el carácter al nuevo lugar (al frente)
-    inc esi                          ; Siguiente carácter en la cadena original
-    inc edi                          ; Siguiente posición en el buffer
+    mov [edi], al                    ; Mover el carÃ¡cter al nuevo lugar (al frente)
+    inc esi                          ; Siguiente carÃ¡cter en la cadena original
+    inc edi                          ; Siguiente posiciÃ³n en el buffer
     jmp L1                           ; Repetir el ciclo
 
 EndShift:
-    mov byte ptr [edi], 0            ; Colocar terminador nulo en la nueva posición final
+    mov byte ptr [edi], 0            ; Colocar terminador nulo en la nueva posiciÃ³n final
 
     ret
 shiftLeft ENDP
@@ -1052,12 +1052,12 @@ parseIntToString proc
     mov ecx, 0                 ; Contador para la longitud de la cadena
 
 convert_loop:
-    xor edx, edx               ; Limpia edx antes de la división
+    xor edx, edx               ; Limpia edx antes de la divisiÃ³n
 	mov ebx, 10
-    div ebx		               ; Divide EAX entre 10, el cociente queda en EAX, el resto en EDX (el dígito)
-    add dl, 30h                ; Convierte el dígito (EDX) a su equivalente ASCII
-    mov tempBuffer[ecx], dl    ; Guarda el dígito en el buffer temporal
-    inc ecx                    ; Aumenta la posición en el buffer
+    div ebx		               ; Divide EAX entre 10, el cociente queda en EAX, el resto en EDX (el dÃ­gito)
+    add dl, 30h                ; Convierte el dÃ­gito (EDX) a su equivalente ASCII
+    mov tempBuffer[ecx], dl    ; Guarda el dÃ­gito en el buffer temporal
+    inc ecx                    ; Aumenta la posiciÃ³n en el buffer
     test eax, eax              ; Verifica si EAX es 0
     jnz convert_loop           ; Si no es 0, sigue dividiendo
 
@@ -1069,14 +1069,14 @@ convert_loop:
     pop ecx						; Cargar la longitud de la cadena
 
 reverse_loop:
-    dec ecx                    ; Decrementa ecx para obtener la posición correcta
-    mov al, tempBuffer[ecx]    ; Carga el dígito invertido
-    mov [edi], al              ; Mueve el dígito al buffer final
+    dec ecx                    ; Decrementa ecx para obtener la posiciÃ³n correcta
+    mov al, tempBuffer[ecx]    ; Carga el dÃ­gito invertido
+    mov [edi], al              ; Mueve el dÃ­gito al buffer final
     inc edi                    ; Avanza el puntero en el buffer
     test ecx, ecx              ; Verifica si hemos terminado
     jnz reverse_loop           ; Si no es 0, sigue
 
-    mov BYTE PTR [edi], 0      ; Termina la cadena con un carácter nulo
+    mov BYTE PTR [edi], 0      ; Termina la cadena con un carÃ¡cter nulo
 
 	ret
 
@@ -1165,22 +1165,22 @@ movePieceProcess proc
 		mGotoxy 60,6
 		mWrite "Moviendo "
 		movzx edx, selectedCellIndex
-		mov al, chessBoard[edx] ;acá se ha caído varias veces (no he identificado el porqué)
+		mov al, chessBoard[edx] ;acÃ¡ se ha caÃ­do varias veces (no he identificado el porquÃ©)
 		cmp al,"*"
 		je emptyCell
 		;---	
 
-		; Verificar si es un peón y validar su movimiento
+		; Verificar si es un peÃ³n y validar su movimiento
 		cmp al, playerPieces[0]; Pregunta si la pieza seleccionada es igual a un peon
 		je callPawnValidation
 		; Falta agregar validaciones de otras piezas (torres, caballos, etc.)
 		jmp continueMove
 
 		callPawnValidation:
-			; Configurar parámetros para validar el movimiento del peón
-			call validatePawnMove ; Llamada al procedimiento de validación
-			cmp al, 0             ; Validación fallida?
-			je invalidMove        ; Si no es válido, regresar a entrada de movimiento
+			; Configurar parÃ¡metros para validar el movimiento del peÃ³n
+			call validatePawnMove ; Llamada al procedimiento de validaciÃ³n
+			cmp al, 0             ; ValidaciÃ³n fallida?
+			je invalidMove        ; Si no es vÃ¡lido, regresar a entrada de movimiento
 		;---
 		continueMove:
 			call writeChar
@@ -1224,12 +1224,12 @@ movePieceProcess proc
 movePieceProcess endp
 
 validatePawnMove proc
-	cmp turn, 0			;SI el player id es 0, entonces este juega con las piezas negras(en mayúscula)
+	cmp turn, 0			;SI el player id es 0, entonces este juega con las piezas negras(en mayÃºscula)
 	;je validateWhitePawn
 	xor eax,eax
 
 	validateBlackPawn:
-		; Peón negro: fila debe aumentar en 1 o 2 (primer movimiento)
+		; PeÃ³n negro: fila debe aumentar en 1 o 2 (primer movimiento)
 		mov al, fromCell[1]
 		sub al, toCell[1]    ; Comparar filas
 		call absolute
@@ -1254,14 +1254,14 @@ validatePawnMove proc
 		call calcCellIndex
 		movzx edi,selectedCellIndex
 		mov al, chessBoard[edi]
-		cmp al, '*'        ; La casilla no puede estar vacía para una captura
+		cmp al, '*'        ; La casilla no puede estar vacÃ­a para una captura
 		je invalidMove
-		cmp al, 'a'        ; Verificar que sea una pieza blanca (minúscula)
+		cmp al, 'a'        ; Verificar que sea una pieza blanca (minÃºscula)
 		jb invalidMove
 		cmp al, 'z'
 		ja invalidMove 
 
-		; Captura válida
+		; Captura vÃ¡lida
 		mov al, 1
 		jmp endPawnValidation 
 
@@ -1271,7 +1271,7 @@ validatePawnMove proc
 		cmp al, toCell[0]
 		jne invalidMove
 
-		; Verificar que la casilla de destino esté vacía
+		; Verificar que la casilla de destino estÃ© vacÃ­a
 		mov ah, toCell[0]
 		mov al, toCell[1]
 		sub al,30h
@@ -1281,7 +1281,7 @@ validatePawnMove proc
 		cmp al, '*'
 		jne invalidMove
 
-		; Movimiento válido hacia adelante
+		; Movimiento vÃ¡lido hacia adelante
 		mov al, 1
 		jmp endPawnValidation													;Revisado*(quitar esto)----------------------------------
 
@@ -1291,7 +1291,7 @@ validatePawnMove proc
 		cmp al, '2'
 		jne invalidMove
 
-		; Verificar que las dos casillas estén vacías
+		; Verificar que las dos casillas estÃ©n vacÃ­as
 		mov ah, toCell[0]
 		mov al, toCell[1]
 		sub al,30h
@@ -1306,7 +1306,7 @@ validatePawnMove proc
 		cmp al, toCell[0]
 		jne invalidMove
 
-		; Casilla intermedia también debe estar vacía
+		; Casilla intermedia tambiÃ©n debe estar vacÃ­a
 		mov ah, fromCell[0]
 		mov al, fromCell[1]
 		sub al,30h
@@ -1317,12 +1317,12 @@ validatePawnMove proc
 		cmp al, '*'
 		jne invalidMove
 
-		; Movimiento válido de dos casillas
+		; Movimiento vÃ¡lido de dos casillas
 		mov al, 1
 		jmp endPawnValidation
 
 	invalidMove:
-		; Movimiento inválido
+		; Movimiento invÃ¡lido
 		mov al, 0
 
 	endPawnValidation:
@@ -1333,11 +1333,11 @@ absolute proc
 	; Args:
 	;	Recibe el valor al que se le desea calcular el valor absoluto en AL
 
-	test al, al           ; Si el bit más significativo (MSB) está en 1, es negativo
+	test al, al           ; Si el bit mÃ¡s significativo (MSB) estÃ¡ en 1, es negativo
 	jns absolute_end      ; Si no es negativo, no hay nada que hacer
 
 	; Si es negativo, hacemos el complemento a dos para invertir el signo
-	neg al                ; AL = -AL (inversión del signo)
+	neg al                ; AL = -AL (inversiÃ³n del signo)
 
 	absolute_end:
 		ret
@@ -1372,9 +1372,9 @@ setColor proc
 	; Leer entrada del usuario
 	mGotoxy 60,10
 	mwrite "Opcion: "
-	call ReadDec  ; Leer número ingresado por el usuario (en eax)
+	call ReadDec  ; Leer nÃºmero ingresado por el usuario (en eax)
 
-	; Comparar el input y cambiar el color del texto según la elección
+	; Comparar el input y cambiar el color del texto segÃºn la elecciÃ³n
 	cmp eax, 1
 	je setColorRed
 	cmp eax, 2
@@ -1485,26 +1485,26 @@ clearBuffer endp
 
 writeToEndOfBuffer proc
 	; Args:
-	; esi: Apunta a la cadena que se va a añadir (newString)
-	; edi: Apunta al buffer donde se añadirá la cadena (buffer)
+	; esi: Apunta a la cadena que se va a aÃ±adir (newString)
+	; edi: Apunta al buffer donde se aÃ±adirÃ¡ la cadena (buffer)
     
-	; Encuentra el final del buffer (donde está el terminador nulo)
+	; Encuentra el final del buffer (donde estÃ¡ el terminador nulo)
 	FindEnd:
-		mov al, [edi]                    ; Cargar carácter actual del buffer
-		cmp al, 0                        ; ¿Es el terminador nulo?
+		mov al, [edi]                    ; Cargar carÃ¡cter actual del buffer
+		cmp al, 0                        ; Â¿Es el terminador nulo?
 		je StartAppend                   ; Si es 0, hemos llegado al final, saltar para agregar la nueva cadena
 		inc edi                          ; Continuar avanzando en el buffer
 		jmp FindEnd                      ; Repetir hasta encontrar el final
 
 	StartAppend:
-		; mov esi, offset newString        ; ESI apunta a la cadena que vamos a añadir
+		; mov esi, offset newString        ; ESI apunta a la cadena que vamos a aÃ±adir
 
 	AppendLoop:
-		mov al, [esi]                    ; Cargar carácter de la nueva cadena
-		cmp al, 0                        ; ¿Es el final de la nueva cadena?
+		mov al, [esi]                    ; Cargar carÃ¡cter de la nueva cadena
+		cmp al, 0                        ; Â¿Es el final de la nueva cadena?
 		je FinishAppend                  ; Si es 0, terminar el proceso
-		mov [edi], al                    ; Copiar el carácter al final del buffer
-		inc esi                          ; Avanzar al siguiente carácter en la nueva cadena
+		mov [edi], al                    ; Copiar el carÃ¡cter al final del buffer
+		inc esi                          ; Avanzar al siguiente carÃ¡cter en la nueva cadena
 		inc edi                          ; Avanzar al siguiente espacio en el buffer
 		jmp AppendLoop                   ; Repetir el ciclo
 
@@ -1516,36 +1516,36 @@ writeToEndOfBuffer endp
 
 savePlayerId proc
 	; Args:
-    ; esi: Apunta al buffer que contiene los dígitos (en formato de caracteres ASCII)
+    ; esi: Apunta al buffer que contiene los dÃ­gitos (en formato de caracteres ASCII)
     ; Return:
-    ; playerId: El número convertido a entero
+    ; playerId: El nÃºmero convertido a entero
 
     mov eax, 0                        ; Limpiar EAX (para acumular el resultado)
-    mov ecx, 0                        ; Limpiar ECX (contador de dígitos)
+    mov ecx, 0                        ; Limpiar ECX (contador de dÃ­gitos)
     mov edi, offset playerId           ; EDI apunta a playerId
 
 	ConvertLoop:
-		mov al, [esi]                     ; Cargar el carácter actual del buffer
-		cmp al, 0                         ; ¿Es el terminador nulo (fin de cadena)?
+		mov al, [esi]                     ; Cargar el carÃ¡cter actual del buffer
+		cmp al, 0                         ; Â¿Es el terminador nulo (fin de cadena)?
 		je EndConvert                     ; Si es el fin de la cadena, salir del bucle
-		cmp al, '0'                       ; Verificar si es un carácter numérico ('0' a '9')
-		jl EndConvert                     ; Si es menor que '0', terminar (carácter no numérico)
+		cmp al, '0'                       ; Verificar si es un carÃ¡cter numÃ©rico ('0' a '9')
+		jl EndConvert                     ; Si es menor que '0', terminar (carÃ¡cter no numÃ©rico)
 		cmp al, '9'                       ; Comparar si es mayor que '9'
-		jg EndConvert                     ; Si es mayor que '9', terminar (carácter no numérico)
+		jg EndConvert                     ; Si es mayor que '9', terminar (carÃ¡cter no numÃ©rico)
 
-		; Convertir carácter a valor numérico
-		sub al, '0'                       ; Restar el valor ASCII de '0' para obtener el valor numérico
-		movzx edx, al                     ; Mover el dígito a EDX (evitando signo)
+		; Convertir carÃ¡cter a valor numÃ©rico
+		sub al, '0'                       ; Restar el valor ASCII de '0' para obtener el valor numÃ©rico
+		movzx edx, al                     ; Mover el dÃ­gito a EDX (evitando signo)
 
 		; Actualizar el valor de playerId
 		movzx eax, playerId                 ; Cargar el valor actual de playerId
-		imul eax, 10                      ; Multiplicar el valor actual por 10 (para desplazar los dígitos)
-		add eax, edx                      ; Sumar el nuevo dígito
+		imul eax, 10                      ; Multiplicar el valor actual por 10 (para desplazar los dÃ­gitos)
+		add eax, edx                      ; Sumar el nuevo dÃ­gito
 
 		mov playerId, al                 ; Almacenar el resultado en playerId
 
-		inc esi                           ; Avanzar al siguiente carácter en el buffer
-		jmp ConvertLoop                   ; Repetir el ciclo para el siguiente carácter
+		inc esi                           ; Avanzar al siguiente carÃ¡cter en el buffer
+		jmp ConvertLoop                   ; Repetir el ciclo para el siguiente carÃ¡cter
 
 	EndConvert:
 		ret
