@@ -6,9 +6,20 @@ include Macros.inc
 	fileHandle handle ?
 	fileName byte "data.txt", 0			; Nombre del archivo de entrada
     buffer byte 256 DUP(?)				; Buffer para leer el archivo
+	auxBuffer byte 256 DUP(?)			; Buffer para auxiliar el principal
     bytesRead dword ?					; Para almacenar los bytes leídos
-	playerId byte ?						; Para Sincronizar cual jugador juega primero (0 - 1)
+	turn byte ?							; Para Sincronizar cual jugador juega primero (0 - 1)
 	gameId dword ?						; Id en la base de datos de la partida
+	playerId byte ?						; Id del jugador en la base de datos
+
+	; Sync instructions
+	signup_i byte "register", 13, 10, 0
+	login_i byte "login", 13, 10, 0
+	create_i byte "create", 13, 10, 0
+	games_i byte "games", 13, 10, 0
+	join_i byte "join", 13, 10, 0
+	playing_i byte "playing", 13, 10, 0
+	length_i byte 0
 
 	; IU Components
 	letterCoords db		"________________________________________",10,
@@ -49,13 +60,67 @@ include Macros.inc
         BYTE "                              }====={                                              }====={", 10, 13
         BYTE "                             (_______)                                            (_______)", 10, 13                  
         BYTE " ", 10, 13
-		BYTE "                                       (-----------)                (-----------)", 10, 13
-        BYTE "                                       |   Nueva   |                |  Cargar   |", 10, 13
-        BYTE "                                       |  partida  |                |  partida  |", 10, 13
-        BYTE "                                       (-----------)                (-----------)", 10, 13
+		BYTE "                (-----------)            (-----------)            (-----------)            (-----------)", 10, 13
+        BYTE "                |  Crear    |            |  Iniciar  |            |   Nueva   |            |  Cargar   |", 10, 13
+        BYTE "                |  Cuenta   |            |  Sesion   |            |  partida  |            |  partida  |", 10, 13
+        BYTE "                (-----------)            (-----------)            (-----------)            (-----------)", 10, 13
 		BYTE "___  ______  ______  ______  ______  ______  ______  ______  ______  ______  ______  ______  ______  ______  ______  ___", 10, 13
         BYTE " __)(__  __)(__  __)(__  __)(__  __)(__  __)(__  __)(__  __)(__  __)(__  __)(__  __)(__  __)(__  __)(__  __)(__  __)(__ ", 10, 13
         BYTE "(______)(______)(______)(______)(______)(______)(______)(______)(______)(______)(______)(______)(______)(______)(______)", 10, 13, 0
+
+	sis	BYTE " ",10 ,13
+		BYTE " ",10 ,13
+		BYTE "		     __  ______  ______  ______  ______  ______  ______  ______  ______  ______  __",10 ,13
+		BYTE "		    (__)(__  __)(_   __)( _  __)(__   _)( _  __)(__  _ )(_   __)(__   _)(__  _ )(__)",10 ,13
+		BYTE "		    (_  ___)(______)(______)(______)(______)(______)(______)(______)(______)(_  ___)",10 ,13
+		BYTE "		    ( _  __)                                                                ( _  __)",10 ,13
+		BYTE "		    (__   _)       ___      _    _             ___         _                (__   _)",10 ,13
+		BYTE "		    (_  ___)      |_ _|_ _ (_)__(_)__ _ _ _   / __| ___ __(_)___ _ _        (_  ___)",10 ,13
+		BYTE "		    (__   _)       | || ' \| / _| / _` | '_|  \__ \/ -_|_-< / _ \ ' \       (__   _)",10 ,13
+		BYTE "		    ( _  __)      |___|_||_|_\__|_\__,_|_|    |___/\___/__/_\___/_||_|      ( _  __)",10 ,13
+		BYTE "		    (__   _)                                                                (__   _)",10 ,13
+		BYTE "		    (_  ___)                                                                (_  ___)",10 ,13
+		BYTE "		    ( _  __)                            Usuario                             ( _  __)",10 ,13
+		BYTE "		    (__   _)                       (----------------)                       (__   _)",10 ,13
+		BYTE "                    (_  ___)                       |                |                       (_  ___)",10 ,13
+		BYTE "		    (__   _)                       (----------------)                       (__   _)",10 ,13
+		BYTE "		    ( _  __)                                                                ( _  __)",10 ,13
+		BYTE "		    (__   _)                                                                (__   _)",10 ,13
+		BYTE "		    (_  ___)                           Contrasena                           (_  ___)",10 ,13
+		BYTE "		    (__   _)                       (----------------)                       (__   _)",10 ,13
+		BYTE "		    ( _  __)                       |                |                       ( _  __)",10 ,13
+		BYTE "		    (__   _)                       (----------------)                       (_    _)",10 ,13
+		BYTE "		    (__   _)                                                                (__   _)",10 ,13
+		BYTE "		    (_  ___) ______  ______  ______  ______  ______  ______  ______  ______ (_  ___)",10 ,13
+		BYTE "		    (__  _ )(__  _ )(__   _)(_   __)( _  __)(_   __)(__   _)(__   _)(_   __)( _  __)",10 ,13
+		BYTE "		    (__)(______)(______)(______)(______)(______)(______)(______)(______)(______)(__)",10 ,13, 0
+
+	sus	BYTE " ",10 ,13
+		BYTE " ",10 ,13
+		BYTE "		     __  ______  ______  ______  ______  ______  ______  ______  ______  ______  __",10 ,13
+		BYTE "		    (__)(__  __)(_   __)( _  __)(__   _)( _  __)(__  _ )(_   __)(__   _)(__  _ )(__)",10 ,13
+		BYTE "		    (_  ___)(______)(______)(______)(______)(______)(______)(______)(______)(_  ___)",10 ,13
+		BYTE "		    ( _  __)             ___          _    _            _                   ( _  __)",10 ,13
+		BYTE "		    (__   _)            | _ \___ __ _(_)__| |_ _ _ __ _| |_ ___             (__   _)",10 ,13
+		BYTE "		    (_  ___)            |   / -_) _` | (_-<  _| '_/ _` |  _/ -_)            (_  ___)",10 ,13
+		BYTE "		    (__   _)            |_|_\___\__, |_/__/\__|_| \__,_|\__\___|            (__   _)",10 ,13
+		BYTE "		    ( _  __)                    |___/                                       ( _  __)",10 ,13
+		BYTE "		    (__   _)                                                                (__   _)",10 ,13
+		BYTE "		    (_  ___)                                                                (_  ___)",10 ,13
+		BYTE "		    ( _  __)                            Usuario                             ( _  __)",10 ,13
+		BYTE "		    (__   _)                       (----------------)                       (__   _)",10 ,13
+		BYTE "                    (_  ___)                       |                |                       (_  ___)",10 ,13
+		BYTE "		    (__   _)                       (----------------)                       (__   _)",10 ,13
+		BYTE "		    ( _  __)                                                                ( _  __)",10 ,13
+		BYTE "		    (__   _)                                                                (__   _)",10 ,13
+		BYTE "		    (_  ___)                           Contrasena                           (_  ___)",10 ,13
+		BYTE "		    (__   _)                       (----------------)                       (__   _)",10 ,13
+		BYTE "		    ( _  __)                       |                |                       ( _  __)",10 ,13
+		BYTE "		    (__   _)                       (----------------)                       (_    _)",10 ,13
+		BYTE "		    (__   _)                                                                (__   _)",10 ,13
+		BYTE "		    (_  ___) ______  ______  ______  ______  ______  ______  ______  ______ (_  ___)",10 ,13
+		BYTE "		    (__  _ )(__  _ )(__   _)(_   __)( _  __)(_   __)(__   _)(__   _)(_   __)( _  __)",10 ,13
+		BYTE "		    (__)(______)(______)(______)(______)(______)(______)(______)(______)(______)(__)",10 ,13, 0
 
 	playerPieces db "prnbqk",0		; Piezas de los jugadores (Peón, Torre, Caballo, Alfil, Reina, Rey)
 
@@ -92,12 +157,16 @@ include Macros.inc
 	jugador1 byte 30 DUP(?)
 	jugador2 byte 30 DUP(?)
 
-
+	; Aux
+	saltoLinea byte 13, 10, 0 ; \r\n
 
 
 .code
 main proc
 	
+	call Clrscr
+	mGotoxy 0,0
+
 	lea edx, hs
 	call writestring
 
@@ -111,20 +180,37 @@ main proc
 
     call ReadChar
     cmp al, "1"
-	je newGame
+	je signup
     cmp al, "2"
+	je login
+	cmp al, "3"
+	je newGame
+	cmp al, "4"
 	je loadGame
+	jmp main
+
+	no_sesion:
+		call clrscr
+		mWrite "Debes iniciar sesion para crear una nueva partida o para unirte a una..."
+		mov eax, 2000
+		call delay
+		jmp main
 
 	newGame:
 		call Clrscr
 
+		movzx eax, playerId
+		cmp eax, 0
+		je no_sesion
+
 		; Al ser el jugador que creo la partida sera el jugador 0
-		mov playerId, 0
+		mov turn, 0
 	
 		call getMSeconds	; Generar un id
 		mov gameId, eax		; Guardarlo
 
 		; Subirlo a la base de datos
+		lea ebx, create_i
 		call UploadGameId
 
 		mWrite "El id de la nueva partida es: "
@@ -132,53 +218,253 @@ main proc
 		call writeInt
 		call Crlf
 		mWrite "Compartelo con el otro jugador para que pueda unirse"
+
 		call Crlf
-		mWrite "Esperando al oponente..."
+		mWrite "Presiona <Enter> para entrar a la partida o <Esc> para volver a la pantalla inicial"
+		call readChar
+		cmp al, 13
+		je wait_for_confirm
+		cmp al, 27
+		je main
 
-		call setOnline
+		wait_for_confirm:
+			mov eax, 2000
+			call delay
+			call ReadDataFile
+			mov al, buffer
+			cmp al, "1"
+		jne wait_for_confirm
 
-		jmp wait_for_opponent_online  
+		call clearBuffer
+		lea edx, playing_i
+		call setInstruction
+
+		mov eax, gameId
+		mov edx, offset buffer[9]
+		call parseIntToString
+
+		mov buffer[17], ","
+
+		movzx eax, playerId
+		mov edx, offset buffer[18]
+		call parseIntToString
+
+		mov buffer[20], 13
+		mov buffer[21], 10
+
+		call writeFileHeader
+
+		jmp start_game
 
 	loadGame:
 		call Clrscr
 
+		cmp playerId, 0
+		je no_sesion
+
+		call clearBuffer
+		movzx eax, playerId
+		mov edx, offset buffer
+		call parseIntToString
+
+		mov ecx, 7
+		call shiftRight
+
+		lea edx, games_i
+		call setInstruction
+
+		call writeFileHeader
+
+		mWrite "Partidas a las que perteneces con el id: "
+		movzx eax, playerId
+		call writeInt
+
+		wait_games_in_file:
+			mov eax, 1500
+			call delay
+			call readDataFile
+			cmp buffer, "1"
+		jne wait_games_in_file
+
+		mov edx, offset buffer[1] ; Saltarse el 1
+		call writeString
+		call crlf
 		mWrite "Id de la partida: "
 		call readInt
 		mov gameId, eax
 
 		; Cargarlo en el archivo
+
+		call clearBuffer
+
+		lea ebx, join_i
 		call UploadGameId
 
-		; Al ser el jugador que se unió, será el jugador 1
-		mov playerId, 1
-		call setOnline
+		wait_response:
+			mov eax, 1500
+			call delay
 
-		call readFromFile
+			call readDataFile
+			cmp buffer, "0"
+			je get_turn
+			cmp buffer, "1"
+			je get_turn
+		jmp wait_response
+
+		get_turn:
+		call readDataFile
+		mov al, buffer
+		sub al, 30h
+		mov turn, al
+
+		mov ecx, 3
+		call shiftLeft
+		mov ecx, 9
+		call shiftRight
+
+		mov edx, offset playing_i
+		call setInstruction
+		call processOldMoves
+		call writeFileHeader
 
 		jmp start_game
 
+	signup:
+		call Clrscr
 
-	wait_for_opponent_online:
-		mov eax, 2000
-		call delay
+		_req:
+		mGotoxy 0, 0
+		mov edx, offset sus
+		call writestring
 
-		call ReadDataFile
-		call verifyOpponentIsOnline
-		test eax, 1
-		jz wait_for_opponent_online
-		jnz start_game
+		call clearBuffer
+		lea edx, signup_i
+		call setInstruction
 
+		; Leer usuario
+		mGotoxy 52, 14
+		mReadString auxBuffer
+		mov esi, offset auxBuffer
+		mov edi, offset buffer
+		call writeToEndOfBuffer
+
+		mov esi, offset saltoLinea
+		mov edi, offset buffer
+		call writeToEndOfBuffer
+
+		; Leer Contraseña
+		mGotoxy 52, 20
+		mReadString auxBuffer
+		mov esi, offset auxBuffer
+		mov edi, offset buffer
+		call writeToEndOfBuffer
+
+		; Añadir al archivo
+		call writeFileHeader
+		jmp wait_for_login
+
+		wait_new_id:
+			mov eax, 1500
+			call delay
+
+			call readDataFile
+
+			mov ecx, 3
+			mov edi, 0
+			compare_3_digits:
+
+				cmp buffer[edi], "0"
+				jl wait_new_id
+				cmp buffer[edi], "9"
+				jg wait_new_id
+				inc edi
+			loop compare_3_digits
+
+
+		jmp wait_response
+
+	login:
+		call Clrscr
+
+		_request:
+		mGotoxy 0, 0
+		mov edx, offset sis
+		call writestring
+
+		call clearBuffer
+		lea edx, login_i
+		call setInstruction
+
+		; Leer usuario
+		mGotoxy 52, 14
+		mReadString auxBuffer
+		mov esi, offset auxBuffer
+		mov edi, offset buffer
+		call writeToEndOfBuffer
+
+		mov esi, offset saltoLinea
+		mov edi, offset buffer
+		call writeToEndOfBuffer
+
+		; Leer Contraseña
+		mGotoxy 52, 20
+		mReadString auxBuffer
+		mov esi, offset auxBuffer
+		mov edi, offset buffer
+		call writeToEndOfBuffer
+
+		; Añadir al archivo
+		call writeFileHeader
+		jmp wait_for_login
+
+		invalid_credentials:
+		call clrscr
+		mGotoxy 40, 27
+		mWrite "Credenciales invalidas. Intentelo Nuevamente..."
+		jmp _request
+
+		wait_for_login:
+			mov eax, 900
+			call delay
+
+			call readDataFile
+			cmp buffer, "0"
+			je invalid_credentials
+			jl wait_for_login
+
+			cmp buffer, "9"
+			jl _ok
+		jmp wait_for_login
+
+		_ok:
+		mov esi, offset buffer
+		call savePlayerId
+		jmp main
 
 	start_game:
-	call clrscr
-	call printInitialBoard
-	call printSidebar
-	call menu
-	mGotoxy 0,25
+		call clrscr
+		call printInitialBoard
+		call printSidebar
+		call getLastMove
+		cmp dl, turn
+		je waitForOpponent
+		jne menu
+		mGotoxy 0,25
 
 exit
 main endp
 
+
+
+
+
+
+
+
+
+; Procedures
+
+; 
 menu proc
 	initMenu:
 		mGotoxy 60,3
@@ -236,12 +522,26 @@ waitForOpponent proc
 
 	call readDataFile
 	call getLastMove
-	cmp dl, playerId
+	cmp dl, turn
 	je waiting
 
 	; Mover ya en la matriz y mostrar el movimiento
+	call movePieceInBuffer
+
+	call printInitialBoard
+	mov eax, 60
+	call clearColumn
+	call menu
+
+waitForOpponent endp
+
+movePieceInBuffer proc
+	; Args:
+	; - ax: Desde (coordenada)
+	; - bx: Hacia (coordenada)
+
 	push bx						; Guardar la jugada
-	call calcCellIndex	
+	call calcCellIndex
 	xor edx, edx
 	mov dl, selectedCellIndex
 	mov bl, chessBoard[edx]		; Guardar pieza
@@ -255,12 +555,7 @@ waitForOpponent proc
 	pop bx
 	mov chessBoard[edx], bl
 
-	call printInitialBoard
-	mov eax, 60
-	call clearColumn
-	call menu
-
-waitForOpponent endp
+movePieceInBuffer endp
 
 clearColumn proc			;Recibe por parametro la columna a limpiar en eax, el valor Y ira por defecto de 0 a 30
 	mov ecx, 0
@@ -284,30 +579,6 @@ getXY PROC ;Obtiene la posición actual del cursor en la consola {1}
 	ret
 getXY ENDP
 
-printCharacter proc
-	; Args:
-	; - dl: Caracter de la ficha ("p", "P", "r", "R", etc.)
-	; - ah: Letra de la columna ("A" a "H")
-	; - al: Número de la fila (1 a 8)
-	
-	; Obtiene la celda por coordenadas
-	push edx
-	call calcCellIndex
-	call calcCellCenterCoords
-
-	pop eax
-	xor edx, edx
-	mov dl, selectedCellIndex
-	mov [chessBoard + edx], al  ; Almacena el carácter en la posición correcta del tablero
-	
-	; Llama a writestring para imprimir el carácter
-	mGotoxy selectedCellX, selectedCellY
-	mov al, [chessBoard + edx]
-	call writechar
-
-	ret
-printCharacter endp
-
 calcCellIndex proc
 	; Args:
 	; - ah: Column (A - H)
@@ -330,43 +601,8 @@ calcCellIndex proc
 	ret
 calcCellIndex endp
 
-calcCellCenterCoords proc
-	; Args:
-    ; - selectedCellIndex: índice de la celda (0 a 63 para un tablero de 8x8)
-    ; Return:
-    ; - selectedCellX: coordenada x de la posición central de la celda
-    ; - selectedCellY: coordenada y de la posición central de la celda
-    local fila: byte
-	local columna: byte
-
-    ; Calcular la fila y la columna en el tablero
-    mov ebx, 8         ; Número de columnas en el tablero
-	mov eax, 0
-    mov al, selectedCellIndex       ; Copiar índice a ecx
-    div bl            ; ah = columna, al = fila
-
-    mov columna, ah   ; Guardar la columna
-    mov fila, al      ; Guardar la fila
-
-    ; Calcular la coordenada x
-	mov eax, 0
-    mov al, columna   ; Mover la columna a eax
-	mov bl, 5
-    mul bl        ; Multiplicar la columna por 5 (ancho de la celda)
-    add al, 2         ; Ajustar a la posición central sumando 2 (mitad de 5)
-    mov selectedCellX, al       ; Guardar la coordenada x en edx
-
-    ; Calcular la coordenada y
-    mov al, fila      ; Mover la fila a eax
-	mov bl, 3
-    mul bl        ; Multiplicar la fila por 5 (altura de la celda)
-    add al, 1         ; Ajustar a la posición central sumando 2 (mitad de 5)
-    mov selectedCellY, al       ; Guardar la coordenada y en ecx
-
-    ret
-calcCellCenterCoords endp
-
 readDataFile proc
+	call clearBuffer
 	; Abrir el archivo de entrada
     mov edx, OFFSET fileName
     call OpenInputFile
@@ -389,8 +625,38 @@ readDataFile proc
 	ret
 
 	fileError:
-	exit
+	ret
 readDataFile endp
+
+writeFileHeader proc
+
+	lea edx, fileName
+	call CreateOutputFile
+	mov fileHandle, eax
+	jc fileError
+
+	mov edi, offset buffer
+	mov ecx, 0
+	_loop:
+		mov al, [edi]
+		cmp al, 0
+		je write
+		inc ecx
+		inc edi
+	jmp _loop
+
+	write:
+	mov eax, fileHandle
+	lea edx, buffer
+	call WriteToFile
+	mov eax, fileHandle
+	call CloseFile
+
+	ret
+
+	fileError:
+	exit
+writeFileHeader endp
 
 writeDataFile proc
 	call readDataFile
@@ -408,7 +674,7 @@ writeDataFile proc
 		jmp find_end_string
 
 	found_end:
-		mov al, playerId
+		mov al, turn
 		add al, 30h
 
 		mov buffer[ecx], al
@@ -427,7 +693,7 @@ writeDataFile proc
 
 	mov eax, fileHandle
 	lea edx, buffer
-	add ecx, 8
+	add ecx, 9
 	call WriteToFile
 	mov eax, fileHandle
 	call CloseFile
@@ -435,6 +701,27 @@ writeDataFile proc
 	fileError:
 	ret
 writeDataFile endp
+
+clearDataFile proc
+
+	mov edx, OFFSET fileName
+    call OpenInputFile
+	mov fileHandle, eax
+    jc fileError                ; Si hay un error, salta a la etiqueta fileError
+
+	mov eax, fileHandle
+	lea edx, buffer
+	add ecx, 0
+	call WriteToFile
+	mov eax, fileHandle
+	call CloseFile
+
+	ret
+
+	fileError:
+	exit
+
+clearDataFile endp
 
 getLastMove proc
 	; Return;
@@ -449,10 +736,16 @@ getLastMove proc
     ; Retrocede hasta encontrar el salto de línea '\n' que precede la última línea
     mov ecx, LENGTHOF buffer     ; Usamos ecx como contador
 	find_end_string:
+		cmp ecx, 24
+		jl not_found
 		cmp BYTE PTR [esi], 0Ah      ; 0Ah es '\n' en ASCII
 		je found_end                 ; Si es '\n', encontramos el inicio de la última línea
 		dec esi                      ; Retrocede el puntero
-		loop find_end_string
+	loop find_end_string
+
+	not_found:
+		mov dl, 1
+		ret
 
 	found_end:
 		sub esi, 8					; Mueve el puntero al inicio de la última línea
@@ -484,6 +777,13 @@ getLastMove proc
 getLastMove endp
 
 uploadGameId proc
+	; Args:
+	; - ebx: instruccion
+	
+	push ebx
+	mov edx, ebx
+	call StrLength
+	mov length_i, al
 
 	lea edx, fileName
 	call CreateOutputFile
@@ -494,9 +794,25 @@ uploadGameId proc
 	lea edx, buffer
 	call parseIntToString
 
+	pop edx
+	call setInstruction
+
+	mov edi, offset buffer
+	movzx eax, length_i
+	add edi, eax
+	add edi, 8
+
+	mov byte ptr [edi], ","
+	inc edi
+	movzx eax, playerId
+	mov edx, edi
+	call parseIntToString
+
+	movzx eax, length_i
+	mov ecx, 11
+	add ecx, eax
 	mov eax, fileHandle
 	lea edx, buffer
-	add ecx, 8
 	call WriteToFile
 	mov eax, fileHandle
 	call CloseFile
@@ -506,85 +822,87 @@ uploadGameId proc
 
 uploadGameId endp
 
-setOnline proc
+setInstruction proc
+	; Args:
+	; - edx: instuccion
 
-	lea edx, fileName
-	call CreateOutputFile
-	mov fileHandle, eax
-	jc fileError
+	push edx
 
-	cmp playerId, 0
-	jne player_1
-	je player_0
+	call StrLength
+	mov ecx, eax
+	push eax
+	call shiftRight
 
-	player_0:
-		mov buffer[8], ","
-		mov buffer[9], "1"
+	pop ecx
+	pop esi
+	mov edi, offset buffer
 
-		cmp buffer[11], "0"
-		je upload_changes
-		cmp buffer[11], "1"
-		je upload_changes
+	inserting:
+		mov al, [esi]                       ; Cargar carácter de la nueva cadena
+        mov [edi], al                       ; Insertar en el buffer
+        inc esi                             ; Siguiente carácter en la nueva cadena
+        inc edi                             ; Siguiente posición en el buffer
+	loop inserting
 
-		; Si el del otro jugador no es ni 0 ni 1, etonces lo ponemos a 0
-		mov buffer[10], ","
-		mov buffer[11], "0"
-		mov buffer[12], 13
-		mov buffer[13], 10
-
-		jmp upload_changes
-
-	player_1:
-		mov buffer[10], ","
-		mov buffer[11], "1"
-		mov buffer[12], 13
-		mov buffer[13], 10
-
-		cmp buffer[9], "0"
-		je upload_changes
-		cmp buffer[9], "1"
-		je upload_changes
-
-		; Si el del otro jugador no es ni 0 ni 1, etonces lo ponemos a 0
-		mov buffer[8], ","
-		mov buffer[9], "0"
-
-	upload_changes:
-	mov eax, fileHandle
-	lea edx, buffer
-	mov ecx, 12
-	call WriteToFile
-	mov eax, fileHandle
-	call CloseFile
-
-	fileError:
 	ret
 
-setOnline endp
+setInstruction endp
 
-verifyOpponentIsOnline proc
-	cmp playerId, 0
-	je player_1
-	jne player_0
+shiftRight proc
+	; Args:
+	; ecx: cantidad de espacios
 
-	player_0:
-	cmp buffer[9], "1"
-	je online
-	jmp offline
+	mov esi, offset buffer					; Inicio
+	mov edi, offset auxBuffer
 
-	player_1:
-	cmp buffer[11], "1"
-	je online
-	jmp offline
+	L1:
+        mov al, [esi]                       ; Cargar el carácter actual
+        cmp al, 0                           ; ¿Es el fin de la cadena?
+        je  EndLoad                         ; Si es 0, terminar
+        mov [edi], al                       ; Copiar al buffer
+        inc esi                             ; Siguiente carácter
+        inc edi                             ; Siguiente posición en buffer
+        jmp L1                              ; Repetir el ciclo
+    EndLoad:
+        mov byte ptr [edi], 0               ; Añadir terminador nulo al final
+		cmp ebx, 0
+		je salir
 
-	online:
-	mov eax, 1
-	ret
+	Reverse:
+		mov edi, offset buffer
+		mov esi, offset auxBuffer
+		add edi, ecx
+		mov ebx, 0
+		jmp L1
+		
+	salir:
+    ret
+shiftRight endp
 
-	offline:
-	mov eax, 0
-	ret
-verifyOpponentIsOnline endp
+shiftLeft PROC
+    ; Args:
+    ; ecx: cantidad de espacios a desplazar (número de caracteres a eliminar)
+    ;
+    ; Desplaza el contenido del buffer hacia la izquierda, eliminando los primeros `ecx` caracteres.
+
+    mov esi, offset buffer           ; ESI apunta al inicio del buffer
+    add esi, ecx                     ; ESI ahora apunta al primer carácter después del desplazamiento
+    mov edi, offset buffer           ; EDI apunta al inicio del buffer (donde vamos a mover los datos)
+
+L1:
+    mov al, [esi]                    ; Cargar carácter actual desde la posición desplazada
+    cmp al, 0                        ; ¿Es el final de la cadena?
+    je EndShift                      ; Si es el final, salir del bucle
+    mov [edi], al                    ; Mover el carácter al nuevo lugar (al frente)
+    inc esi                          ; Siguiente carácter en la cadena original
+    inc edi                          ; Siguiente posición en el buffer
+    jmp L1                           ; Repetir el ciclo
+
+EndShift:
+    mov byte ptr [edi], 0            ; Colocar terminador nulo en la nueva posición final
+
+    ret
+shiftLeft ENDP
 
 printSidebar proc
 	pusha
@@ -686,28 +1004,6 @@ cleanRegisters proc
 	ret
 cleanRegisters endp
 
-isInRange proc
-
-	; Args:
-	; - dl: dato
-    ; - al: desde
-	; - ah: hasta
-    ; Return:
-	; - al: resultado booleano (1 o 0)
-
-	cmp dl, al
-	jl notValid
-	cmp dl, ah
-	jg notValid
-	mov al, 1
-	ret
-
-	notValid:
-	mov al, 0
-	ret
-
-isInRange endp
-
 validateColumn proc
 	; Args:
     ; - dl: caracter
@@ -749,7 +1045,6 @@ parseIntToString proc
 	; - eax: number
 	; - edx: buffer
 	LOCAL resPtr:DWORD
-	LOCAL bufferLocal[11]:BYTE
 	LOCAL tempBuffer[11]:BYTE
 
 	mov resPtr, edx
@@ -788,7 +1083,7 @@ reverse_loop:
 parseIntToString endp
 
 movePieceProcess proc
-	cmp playerId,0
+	cmp turn,0
 	jne movement_init
 	INVOKE Str_ucase, ADDR playerPieces
 
@@ -900,6 +1195,10 @@ movePieceProcess proc
 
 			; Mover ya en la matriz y mostrar el movimiento
 			xor edx, edx
+			mov ah, fromCell[0]
+			mov al, fromCell[1]
+			sub al, 30h
+			call calcCellIndex
 			movzx edx, selectedCellIndex
 			mov bl, chessBoard[edx]		; Guardar pieza
 			mov chessBoard[edx], "*"	; Borrar de donde estaba
@@ -925,7 +1224,7 @@ movePieceProcess proc
 movePieceProcess endp
 
 validatePawnMove proc
-	cmp playerId, 0			;SI el player id es 0, entonces este juega con las piezas negras(en mayúscula)
+	cmp turn, 0			;SI el player id es 0, entonces este juega con las piezas negras(en mayúscula)
 	;je validateWhitePawn
 	xor eax,eax
 
@@ -1146,4 +1445,110 @@ done:
 	call printBoard
 	ret
 setColor endp
+
+processOldMoves proc
+
+	mov edi, offset buffer
+	add edi, 24
+
+	_loop:
+		cmp byte ptr [edi], 0
+		je finish
+		mov ah, [edi]
+		mov al, [edi+1]
+		mov bh, [edi+3]
+		mov bl, [edi+4]
+		sub al, 30h
+		sub bl, 30h
+		call movePieceInBuffer
+		add edi, 9
+		cmp byte ptr [edi], 0
+	jne _loop
+
+	finish:
+	ret
+processOldMoves endp
+
+clearBuffer proc
+
+	mov esi, offset buffer
+
+	mov ecx, lengthof buffer
+	_loop:
+		mov byte ptr [esi], 0
+		inc esi
+	loop _loop
+
+	ret
+
+clearBuffer endp
+
+writeToEndOfBuffer proc
+	; Args:
+	; esi: Apunta a la cadena que se va a añadir (newString)
+	; edi: Apunta al buffer donde se añadirá la cadena (buffer)
+    
+	; Encuentra el final del buffer (donde está el terminador nulo)
+	FindEnd:
+		mov al, [edi]                    ; Cargar carácter actual del buffer
+		cmp al, 0                        ; ¿Es el terminador nulo?
+		je StartAppend                   ; Si es 0, hemos llegado al final, saltar para agregar la nueva cadena
+		inc edi                          ; Continuar avanzando en el buffer
+		jmp FindEnd                      ; Repetir hasta encontrar el final
+
+	StartAppend:
+		; mov esi, offset newString        ; ESI apunta a la cadena que vamos a añadir
+
+	AppendLoop:
+		mov al, [esi]                    ; Cargar carácter de la nueva cadena
+		cmp al, 0                        ; ¿Es el final de la nueva cadena?
+		je FinishAppend                  ; Si es 0, terminar el proceso
+		mov [edi], al                    ; Copiar el carácter al final del buffer
+		inc esi                          ; Avanzar al siguiente carácter en la nueva cadena
+		inc edi                          ; Avanzar al siguiente espacio en el buffer
+		jmp AppendLoop                   ; Repetir el ciclo
+
+	FinishAppend:
+		mov byte ptr [edi], 0            ; Colocar terminador nulo al final del buffer
+
+	ret
+writeToEndOfBuffer endp
+
+savePlayerId proc
+	; Args:
+    ; esi: Apunta al buffer que contiene los dígitos (en formato de caracteres ASCII)
+    ; Return:
+    ; playerId: El número convertido a entero
+
+    mov eax, 0                        ; Limpiar EAX (para acumular el resultado)
+    mov ecx, 0                        ; Limpiar ECX (contador de dígitos)
+    mov edi, offset playerId           ; EDI apunta a playerId
+
+	ConvertLoop:
+		mov al, [esi]                     ; Cargar el carácter actual del buffer
+		cmp al, 0                         ; ¿Es el terminador nulo (fin de cadena)?
+		je EndConvert                     ; Si es el fin de la cadena, salir del bucle
+		cmp al, '0'                       ; Verificar si es un carácter numérico ('0' a '9')
+		jl EndConvert                     ; Si es menor que '0', terminar (carácter no numérico)
+		cmp al, '9'                       ; Comparar si es mayor que '9'
+		jg EndConvert                     ; Si es mayor que '9', terminar (carácter no numérico)
+
+		; Convertir carácter a valor numérico
+		sub al, '0'                       ; Restar el valor ASCII de '0' para obtener el valor numérico
+		movzx edx, al                     ; Mover el dígito a EDX (evitando signo)
+
+		; Actualizar el valor de playerId
+		movzx eax, playerId                 ; Cargar el valor actual de playerId
+		imul eax, 10                      ; Multiplicar el valor actual por 10 (para desplazar los dígitos)
+		add eax, edx                      ; Sumar el nuevo dígito
+
+		mov playerId, al                 ; Almacenar el resultado en playerId
+
+		inc esi                           ; Avanzar al siguiente carácter en el buffer
+		jmp ConvertLoop                   ; Repetir el ciclo para el siguiente carácter
+
+	EndConvert:
+		ret
+savePlayerId endp
+
 end main
