@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, appendFileSync, watch, watchFile } from "node:fs";
+import { readFileSync, writeFileSync, appendFileSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
 
 class Adapter {
@@ -35,7 +35,7 @@ async function register() {
   if (!file) return;
 
   console.log("Registering player...");
-  const [_, username, password] = file.split("\n");
+  const [_, username, password] = file.split("\r\n");
   const res = await supabase.from("users").insert([{ username, password }]);
 
   // Manejar errores
@@ -54,14 +54,14 @@ async function login() {
   if (!file) return;
 
   console.log("Logging player...");
-  const [_, username, password] = file.split("\n");
+  const [_, username, password] = file.split("\r\n");
+  console.log(username, password);
   const { data, error } = await supabase
     .from("users")
     .select("id")
     .eq("username", username)
     .eq("password", password)
     .single();
-
   // Manejar errores
   if (error) {
     console.error(error);
@@ -79,11 +79,11 @@ async function login() {
   writeFileSync("data.txt", data.id.toString()); // Responder a assembly
 }
 
-async function create_game() {
+async function createGame() {
   const file = readFileSync("data.txt", "utf-8");
   if (!file) return;
 
-  const [_, meta] = file.split("\n");
+  const [_, meta] = file.split("\r\n");
   const game_id = meta.split(",")[0];
   const user_id = meta.split(",")[1];
 
@@ -118,7 +118,29 @@ async function create_game() {
 
 }
 
-async function join_game() {
+async function getGamesById() {
+  const file = readFileSync("data.txt", "utf-8");
+  if (!file) return;
+
+  const [_, user_id] = file.split("\r\n");
+  const res1 = await supabase.from("games").select("id").eq("player_1", user_id)
+  const res2 = await supabase.from("games").select("id").eq("player_2", user_id)
+
+  // Manejar errores
+  if (res1.error || res2.error) {
+    console.error(res1.error || res2.error);
+    writeFileSync("data.txt", "0"); // Responder a assembly
+    return;
+  }
+
+  const games = [...res1.data, ...res2.data].map(game => game.id).join("\r\n");
+
+  console.log("Games found:", games);
+
+  writeFileSync("data.txt", "1\r\n" + games); // Responder a assembly
+}
+
+async function joinGame() {
   const file = readFileSync("data.txt", "utf-8");
   if (!file) return;
 
@@ -167,13 +189,17 @@ async function join_game() {
   // Traer los movimientos de la base de datos
   const movementsRes = await supabase.from("movements").select("*").eq("game_id", game_id)
 
-  let fileRes = "1\r\n" + game_id + "," + user_id + "\r\n";
+  let fileRes = player_turn + "\r\n" + game_id + "," + user_id + "\r\n";
   for (const movement of movementsRes.data) {
-    fileRes += Adapter.toFileRow(movement) + "\r\n";
+    fileRes += Adapter.toFileRow(movement);
+
+    if (fileRes.at(-1) == "\r") fileRes += "\n";
+    else fileRes += "\r\n";
     movesCount++;
   }
 
-  if (movementsRes.data.at(-1).player == player_turn) {
+  console.log(movementsRes)
+  if (movementsRes.data.length == 0 || movementsRes.data.at(-1).player == player_turn) {
     ignoreDatabaseChange = false;
     ignoreFileChange = true;
   } else {
@@ -188,7 +214,8 @@ async function playing() {
   const file = readFileSync("data.txt", "utf-8");
   if (!file) return;
 
-  const [_, meta, ...moves] = file.split("\n");
+  const [_, meta, ...moves] = file.split("\r\n");
+  if (moves.at(-1) == "") moves.pop();
   const game_id = meta.split(",")[0];
   const player_id = meta.split(",")[1];
 
@@ -203,12 +230,15 @@ async function playing() {
   if (gameDB.data[0].player_1 == player_id) player_turn = 0;
   else player_turn = 1;
 
-  if (moves.length == 0 || moves.at(-1).split(",")[0] != player_turn) {
+  console.log("Moves: ", moves);
+  if (moves.length == 0 || moves[0] == "" || moves.at(-1).split(",")[0] != player_turn) {
     ignoreDatabaseChange = true;
     ignoreFileChange = false;
+    console.log("Waiting for move...");
   } else {
     ignoreDatabaseChange = false;
     ignoreFileChange = true;
+    console.log("Waiting for opponent's move...");
   }
 
   console.log(
@@ -217,31 +247,30 @@ async function playing() {
     "File: " + !ignoreFileChange,
   )
 
-  await watchDataFile();
-  await watchDB(game_id);
+  if (!ignoreFileChange) await watchDataFile();
+  else if (!ignoreDatabaseChange) await watchDB(game_id);
 
   clearInterval(mainLoop);
 }
 
 async function watchDataFile() {
   console.log("Watching file...");
-  watchFile("data.txt", { interval: 1500 }, async (curr, prev) => {
-    if (curr.mtime == prev.mtime) return;  // Si el archivo no ha cambiado, no hacemos nada.
 
-    if (ignoreFileChange && !ignoreDatabaseChange) return;  // Si estamos ignorando cambios en el archivo y no en la BD, salimos.
-
-    if (ignoreFileChange && ignoreDatabaseChange) {
-      ignoreFileChange = false;  // Resetear el flag cuando ambos son true.
-      console.log("Movimiento descargado desde el archivo exitosamente");
-      console.log("Waiting for move...");
+  const watcher = setInterval(async () => {
+    let file;
+    try {
+      file = readFileSync("data.txt", "utf-8");
+    } catch (e) {
       return;
     }
+    const [_, meta, ...moves] = file.split("\r\n");
+    if (moves.at(-1) == "") moves.pop();
+    const lastMove = moves.at(-1);
 
-    const file = readFileSync("data.txt", "utf-8");
-    const [_, meta, ...moves] = file.split("\n");
-    const lastMove = moves.at(-1) || moves.at(-2);
+    console.log("Checking for new movements in file:", moves);
 
-    if (parseInt(lastMove) != player_turn) return; // Si es del otro jugador vino de la base de datos
+    if (moves.length === movesCount) return;  // Si no hay nuevos movimientos, salimos.
+    if (lastMove.split(",")[0] != player_turn) return; // Si es del otro jugador vino de la base de datos
 
     // Procesar el nuevo movimiento
     console.log("New movement detected from file");
@@ -250,66 +279,72 @@ async function watchDataFile() {
     const [player, from, to] = lastMove ? lastMove.split(",") : [null, null, null];
     const res = await supabase.from("movements").insert({ game_id, player, from, to });
 
-    if (res.error) {
-      console.error(res.error);
-      return;
-    }
+    if (res.error) return console.error(res.error);
 
     movesCount++;
-
     ignoreDatabaseChange = true;
     ignoreFileChange = true;
     console.log("Database updated. Moves: " + movesCount);
-  });
-}
 
+    clearInterval(watcher);
+    watchDB(game_id);
+  }, 2000);
+}
 
 async function watchDB(game_id) {
   console.log("Watching database...");
 
-  supabase
+  const watcher = supabase
     .channel("movements")
     .on(
       "postgres_changes",
       { event: "INSERT", schema: "public", table: "movements", filter: `game_id=eq.${game_id}` },
-      (payload) => {
-        if (ignoreDatabaseChange && !ignoreFileChange) return;  // Si estamos ignorando cambios en la BD y no en el archivo, salimos.
-
-        if (ignoreDatabaseChange && ignoreFileChange) {
-          ignoreDatabaseChange = false;  // Resetear el flag cuando ambos son true.
-          console.log("Movimiento descargado desde la db exitosamente");
-          console.log("Waiting for opponent's move...");
-          return;
-        }
-
-        const newRow = payload.new;
-        console.log("New move detected from database:", newRow);
-
-        const fileLine = Adapter.toFileRow(newRow);
-        ignoreFileChange = true;
-        appendFileSync("data.txt", fileLine + "\n");
-        movesCount++;
-        console.log("Move added to file:", fileLine);
-
-        ignoreDatabaseChange = true;
-        console.log("File updated. Moves: " + movesCount);
-      }
+      (payload) => dbPayloadHandler(payload, watcher)
     )
     .subscribe();
 }
 
+function dbPayloadHandler(payload, watcher) {
+  const newRow = payload.new;
+  console.log("New move detected from database:", newRow);
+
+  const fileLine = Adapter.toFileRow(newRow);
+  ignoreFileChange = true;
+
+  try {
+    appendFileSync("data.txt", + "\n" + fileLine + "\r\n");
+  } catch (e) {
+    dbPayloadHandler(payload)
+    return;
+  }
+  movesCount++;
+  console.log("Move added to file:", fileLine);
+
+  ignoreDatabaseChange = true;
+  console.log("File updated. Moves: " + movesCount);
+
+  watcher.unsubscribe();
+  watchDataFile();
+}
+
 
 async function main() {
-  const instruction = getInstruction();
-  if (!instruction || instruction.length <= 2) return;
+  try {
+    const instruction = getInstruction();
+    if (!instruction || instruction.length <= 2) return;
 
-  console.log("Instruction received:", instruction);
+    console.log("Instruction received:", instruction);
 
-  if (instruction == "register") await register();
-  else if (instruction == "login") await login();
-  else if (instruction == "create") await create_game();
-  else if (instruction == "join") await join_game();
-  else if (instruction == "playing") await playing();
+    if (instruction == "register") await register();
+    else if (instruction == "login") await login();
+    else if (instruction == "create") await createGame();
+    else if (instruction == "games") await getGamesById();
+    else if (instruction == "join") await joinGame();
+    else if (instruction == "playing") await playing();
+  } catch (e) {
+    console.error(e);
+    return;
+  }
 }
 
 const mainLoop = setInterval(main, 2000);
