@@ -231,7 +231,7 @@ async function playing() {
   else player_turn = 1;
 
   console.log("Moves: ", moves);
-  if (moves.length == 0 || moves.at(-1).split(",")[0] != player_turn) {
+  if (moves.length == 0) {
     if (player_turn == 0) {
       ignoreDatabaseChange = true;
       ignoreFileChange = false;
@@ -241,11 +241,14 @@ async function playing() {
       ignoreFileChange = true;
       console.log("Waiting for opponent's move...");
     }
-
-  } else {
+  } else if (moves.at(-1).split(",")[0] == player_turn) {
     ignoreDatabaseChange = false;
     ignoreFileChange = true;
     console.log("Waiting for opponent's move...");
+  } else if (moves.at(-1).split(",")[0] != player_turn) {
+    ignoreDatabaseChange = true;
+    ignoreFileChange = false;
+    console.log("Waiting for move...");
   }
 
   console.log(
