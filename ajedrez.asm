@@ -1081,7 +1081,7 @@ reverse_loop:
 	ret
 
 parseIntToString endp
-
+;----trabajando en esta parte 14/09/2024
 movePieceProcess proc
 	cmp turn,0
 	jne movement_init
@@ -1157,6 +1157,42 @@ movePieceProcess proc
 			jmp movement_init
 
 	valid_movement:
+	    cmp turn, 0
+		jne check_white_turn
+		; Turno de negro
+		; Asegurarse de que la pieza seleccionada sea mayúscula
+		mov ah, fromCell[0]
+		mov al, fromCell[1]
+		sub al, 30h
+		call calcCellIndex
+		movzx edx, selectedCellIndex
+		mov al, chessBoard[edx]
+		cmp al, '*'
+		je emptyCell
+		; Verificar si la pieza es mayúscula (negra)
+		call isUpperCase
+		cmp al, 1
+		jne invalidMoveOwnership
+		jmp proceed_validation
+
+	check_white_turn:
+		; Turno de blanco
+		; Asegurarse de que la pieza seleccionada sea minúscula
+		mov ah, fromCell[0]
+		mov al, fromCell[1]
+		sub al, 30h
+		call calcCellIndex
+		movzx edx, selectedCellIndex
+		mov al, chessBoard[edx]
+		cmp al, '*'
+		je emptyCell
+		; Verificar si la pieza es minúscula (blanca)
+		call isLowerCase
+		cmp al, 1
+		jne invalidMoveOwnership
+
+	proceed_validation:
+    ; Continuar con la validación de fichas
 		mov ah, fromCell
 		mov al, fromCell[1]
 		sub al, 30h
@@ -1217,18 +1253,30 @@ movePieceProcess proc
 		call writeDataFile
 
 		call printInitialBoard
+		call printSidebar
+		call printBoard
 
 		call waitForOpponent
+
+		invalidMoveOwnership:
+			mGotoxy 60,6
+			mWrite "No puedes mover una pieza del oponente"
+			mGotoxy 60,7
+			call WaitMsg
+			jmp movement_init
+
 
 	ret
 movePieceProcess endp
 
 validatePawnMove proc
 	cmp turn, 0			;SI el player id es 0, entonces este juega con las piezas negras(en mayúscula)
-	;je validateWhitePawn
-	xor eax,eax
+	je validate_black_pawn
+	jmp validate_white_pawn
+	ret
 
-	validateBlackPawn:
+	validate_black_pawn:
+		xor eax,eax
 		; Peón negro: fila debe aumentar en 1 o 2 (primer movimiento)
 		mov al, fromCell[1]
 		sub al, toCell[1]    ; Comparar filas
@@ -1236,8 +1284,8 @@ validatePawnMove proc
 		cmp al, 1			 ; Si el desplazamiento es 1, validar captura o movimiento normal
 		je checkBlackCapture ; Verificar si hay captura
 		cmp al, 2			 ; En caso de que se desplace 2 filas...
-		je checkFirstMove	 ; Verificar que sea el primer movimiento
-		jmp invalidMove		 ; Si no es niguno de los casos anteriores, el movimiento es invalido ;Revisado*(quitar esto)
+		je checkBlackFirstMove	 ; Verificar que sea el primer movimiento
+		jmp invalidMovePawn	 ; Si no es niguno de los casos anteriores, el movimiento es invalido ;Revisado*(quitar esto)
 
 	checkBlackCapture:
 		; Movimiento diagonal para captura
@@ -1245,7 +1293,7 @@ validatePawnMove proc
 		sub al, toCell[0]    ; Comparar columnas (debe ser una casilla en diagonal) B->C or A<-B la distancia debe de ser 1
 		call absolute
 		cmp al, 1
-		jne checkForwardMove  ; Si no es diagonal, verificar movimiento normal
+		jne checkBlackForwardMove  ; Si no es diagonal, verificar movimiento normal
 
 		; Verificar si hay una pieza enemiga para capturar
 		mov ah, toCell[0]
@@ -1255,21 +1303,21 @@ validatePawnMove proc
 		movzx edi,selectedCellIndex
 		mov al, chessBoard[edi]
 		cmp al, '*'        ; La casilla no puede estar vacía para una captura
-		je invalidMove
+		je invalidMovePawn
 		cmp al, 'a'        ; Verificar que sea una pieza blanca (minúscula)
-		jb invalidMove
+		jb invalidMovePawn
 		cmp al, 'z'
-		ja invalidMove 
+		ja invalidMovePawn 
 
 		; Captura válida
 		mov al, 1
 		jmp endPawnValidation 
 
-	checkForwardMove:
+	checkBlackForwardMove:
 		; Verificar movimiento hacia adelante (columna igual)
 		mov al, fromCell[0]
 		cmp al, toCell[0]
-		jne invalidMove
+		jne invalidMovePawn
 
 		; Verificar que la casilla de destino esté vacía
 		mov ah, toCell[0]
@@ -1279,17 +1327,17 @@ validatePawnMove proc
 		movzx edi,selectedCellIndex
 		mov al, chessBoard[edi]
 		cmp al, '*'
-		jne invalidMove
+		jne invalidMovePawn
 
 		; Movimiento válido hacia adelante
 		mov al, 1
 		jmp endPawnValidation													;Revisado*(quitar esto)----------------------------------
 
-	checkFirstMove:
+	checkBlackFirstMove:
 		; Primer movimiento: debe estar en fila 2
 		mov al, fromCell[1]
 		cmp al, '2'
-		jne invalidMove
+		jne invalidMovePawn
 
 		; Verificar que las dos casillas estén vacías
 		mov ah, toCell[0]
@@ -1299,12 +1347,12 @@ validatePawnMove proc
 		movzx edi,selectedCellIndex
 		mov al, chessBoard[edi]
 		cmp al, '*'
-		jne invalidMove
+		jne invalidMovePawn
 
 		; Verificar movimiento hacia adelante (columna igual)
 		mov al, fromCell[0]
 		cmp al, toCell[0]
-		jne invalidMove
+		jne invalidMovePawn
 
 		; Casilla intermedia también debe estar vacía
 		mov ah, fromCell[0]
@@ -1315,13 +1363,107 @@ validatePawnMove proc
 		add edi, 8h
 		mov al, chessBoard[edi]
 		cmp al, '*'
-		jne invalidMove
+		jne invalidMovePawn
 
 		; Movimiento válido de dos casillas
 		mov al, 1
 		jmp endPawnValidation
 
-	invalidMove:
+	validate_white_pawn:
+    xor eax, eax
+
+    ; Peón blanco: fila debe disminuir en 1 o 2 (primer movimiento)
+    mov al, toCell[1]
+    sub al, fromCell[1]    ; Comparar filas (destino - origen)
+    call absolute
+    cmp al, 1			 ; Si el desplazamiento es 1, validar captura o movimiento normal
+    je check_white_capture ; Verificar si hay captura
+    cmp al, 2			 ; En caso de que se desplace 2 filas...
+    je check_white_first_move	 ; Verificar que sea el primer movimiento
+    jmp invalidMovePawn		 ; Movimiento inválido
+
+check_white_capture:
+    ; Movimiento diagonal para captura
+    mov al, fromCell[0]
+    sub al, toCell[0]    ; Comparar columnas (debe ser una casilla en diagonal)
+    call absolute
+    cmp al, 1
+    jne check_white_forward_move  ; Si no es diagonal, verificar movimiento normal
+
+    ; Verificar si hay una pieza enemiga para capturar
+    mov ah, toCell[0]
+    mov al, toCell[1]
+    sub al,30h
+    call calcCellIndex
+    movzx edi,selectedCellIndex
+    mov al, chessBoard[edi]
+    cmp al, '*'        ; La casilla no puede estar vacía para una captura
+    je invalidMovePawn
+    cmp al, 'A'        ; Verificar que sea una pieza negra (mayúscula)
+    jb invalidMovePawn
+    cmp al, 'Z'
+    ja invalidMovePawn 
+
+    ; Captura válida
+    mov al, 1
+    jmp endPawnValidation
+
+check_white_forward_move:
+    ; Verificar movimiento hacia adelante (columna igual)
+    mov al, fromCell[0]
+    cmp al, toCell[0]
+    jne invalidMovePawn
+
+    ; Verificar que la casilla de destino esté vacía
+    mov ah, toCell[0]
+    mov al, toCell[1]
+    sub al,30h
+    call calcCellIndex
+    movzx edi,selectedCellIndex
+    mov al, chessBoard[edi]
+    cmp al, '*'
+    jne invalidMovePawn
+
+    ; Movimiento válido hacia adelante
+    mov al, 1
+    jmp endPawnValidation
+
+	check_white_first_move:
+		; Primer movimiento: debe estar en fila 7 (A7 a H7 para peones blancos)
+		mov al, fromCell[1]
+		cmp al, '7'			; Peones blancos están en fila 7
+		jne invalidMovePawn
+
+		; Verificar que las dos casillas estén vacías
+		mov ah, toCell[0]
+		mov al, toCell[1]
+		sub al,30h
+		call calcCellIndex
+		movzx edi,selectedCellIndex
+		mov al, chessBoard[edi]
+		cmp al, '*'
+		jne invalidMovePawn
+
+		; Verificar movimiento hacia adelante (columna igual)
+		mov al, fromCell[0]
+		cmp al, toCell[0]
+		jne invalidMovePawn
+
+		; Casilla intermedia también debe estar vacía
+		mov ah, fromCell[0]
+		mov al, fromCell[1]
+		sub al,30h
+		call calcCellIndex
+		sub edi, 8h			; Una fila atrás para peones blancos
+		mov al, chessBoard[edi]
+		cmp al, '*'
+		jne invalidMovePawn
+
+		; Movimiento válido de dos casillas
+		mov al, 1
+		jmp endPawnValidation
+
+	invalidMovePawn:
 		; Movimiento inválido
 		mov al, 0
 
@@ -1342,6 +1484,34 @@ absolute proc
 	absolute_end:
 		ret
 absolute endp
+
+; Función para verificar si un carácter es mayúscula
+; Retorna AL = 1 si es mayúscula, AL = 0 si no lo es
+isUpperCase proc
+    cmp al, 'A'
+    jb not_upper
+    cmp al, 'Z'
+    ja not_upper
+    mov al, 1
+    ret
+	not_upper:
+		mov al, 0
+		ret
+isUpperCase endp
+
+; Función para verificar si un carácter es minúscula
+; Retorna AL = 1 si es minúscula, AL = 0 si no lo es
+isLowerCase proc
+    cmp al, 'a'
+    jb not_lower
+    cmp al, 'z'
+    ja not_lower
+    mov al, 1
+    ret
+	not_lower:
+		mov al, 0
+    ret
+isLowerCase endp
 
 setColor proc
 	mov eax, 60
