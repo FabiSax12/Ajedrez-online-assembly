@@ -996,6 +996,7 @@ mov ecx, 1
 		lea edx, letterCoords
 		call writestring
 		call printBoard
+		call printSidebar
 		ret
 printInitialBoard endp
 
