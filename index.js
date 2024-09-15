@@ -19,6 +19,7 @@ let ignoreDatabaseChange = false;
 let ignoreFileChange = false;
 let movesCount = 0;
 let player_turn;
+let restart = false;
 
 const supabase = createClient(URL, API_KEY);
 
@@ -261,6 +262,7 @@ async function playing() {
   else if (!ignoreDatabaseChange) await watchDB(game_id);
 
   clearInterval(mainLoop);
+  return;
 }
 
 async function watchDataFile() {
@@ -273,14 +275,22 @@ async function watchDataFile() {
     } catch (e) {
       return;
     }
+
     const [_, meta, ...moves] = file.split("\r\n");
     if (moves.at(-1) == "") moves.pop();
     const lastMove = moves.at(-1);
+    // Ver si el jugador se salió
+    if (lastMove == "$") {
+      writeFileSync("data.txt", "");
+      clearInterval(watcher);
+      mainLoop = setInterval(main, 2000);
+      return;
+    }
 
     console.log("Checking for new movements in file:", moves);
 
     if (moves.length === movesCount) return;  // Si no hay nuevos movimientos, salimos.
-    if (lastMove.split(",")[0] != player_turn) return; // Si es del otro jugador vino de la base de datos
+    if (!lastMove || lastMove.split(",")[0] != player_turn) return; // Si es del otro jugador vino de la base de datos
 
     // Procesar el nuevo movimiento
     console.log("New movement detected from file");
@@ -357,4 +367,4 @@ async function main() {
   }
 }
 
-const mainLoop = setInterval(main, 2000);
+let mainLoop = setInterval(main, 2000);
