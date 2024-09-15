@@ -1096,7 +1096,7 @@ movePieceProcess proc
 	movement_init:
 		mov eax,60
 		call clearColumn
-		mGotoxy 60,7
+		mGotoxy 60,10
 		cmp turn,0
 		jne message_white_pieces_lower_case
 		mwrite "Juegas con las fichas de arriba (Mayusculas)"
@@ -1468,6 +1468,7 @@ check_white_forward_move:
 		mov al, fromCell[1]
 		sub al,30h
 		call calcCellIndex
+		movzx edi,selectedCellIndex
 		sub edi, 8h			; Una fila atrás para peones blancos
 		mov al, chessBoard[edi]
 		cmp al, '*'
