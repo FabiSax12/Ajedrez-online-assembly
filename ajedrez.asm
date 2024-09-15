@@ -207,6 +207,11 @@ main proc
 		mov turn, 0
 	
 		call getMSeconds	; Generar un id
+		cmp eax, 10000000	; A veces genera un id de 7 digitos
+		jge saveId 
+		add eax, 10000000
+
+		saveId:
 		mov gameId, eax		; Guardarlo
 
 		; Subirlo a la base de datos
