@@ -1096,6 +1096,14 @@ movePieceProcess proc
 	movement_init:
 		mov eax,60
 		call clearColumn
+		mGotoxy 60,7
+		cmp turn,0
+		jne message_white_pieces_lower_case
+		mwrite "Juegas con las fichas de arriba (Mayusculas)"
+		jmp continue_movement_input
+		message_white_pieces_lower_case:
+		mwrite "Juegas con las fichas de abajo (Minusculas)"
+		continue_movement_input:
 		mGotoxy 60,3
 		mwrite "Posicion de la ficha:"
 		mGotoxy 60,4
