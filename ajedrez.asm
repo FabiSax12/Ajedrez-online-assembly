@@ -134,6 +134,15 @@ include Macros.inc
 				byte  "p", "p", "p", "p", "p", "p", "p", "p"  ; Fila 7 - Peones blancos (A7 a H7)
 				byte  "r", "n", "b", "q", "k", "b", "n", "r", 0   ; Fila 8 - Blancas (A8 a H8)
 
+	chessBoardStatic	byte  "R", "N", "B", "Q", "K", "B", "N", "R"  ; Fila 1 - Negras (A1 a H1)
+						byte  "P", "P", "P", "P", "P", "P", "P", "P"  ; Fila 2 - Peones negros (A2 a H2)
+						byte  "*", "*", "*", "*", "*", "*", "*", "*"  ; Fila 3 - Vacío (A3 a H3)
+						byte  "*", "*", "*", "*", "*", "*", "*", "*"  ; Fila 4 - Vacío (A4 a H4)
+						byte  "*", "*", "*", "*", "*", "*", "*", "*"  ; Fila 5 - Vacío (A5 a H5)
+						byte  "*", "*", "*", "*", "*", "*", "*", "*"  ; Fila 6 - Vacío (A6 a H6)
+						byte  "p", "p", "p", "p", "p", "p", "p", "p"  ; Fila 7 - Peones blancos (A7 a H7)
+						byte  "r", "n", "b", "q", "k", "b", "n", "r", 0   ; Fila 8 - Blancas (A8 a H8)
+
 	; Position Vars
 	selectedCellX byte ?
 	selectedCellY byte ?
@@ -148,6 +157,14 @@ include Macros.inc
 	;(código extraído de "https://stackoverflow.com/questions/50589401/how-to-get-current-cursor-position-in-masm")
     BufferInfo CONSOLE_SCREEN_BUFFER_INFO <>
 
+	; Para el mouse
+	hStdIn		DWORD ?
+	ConsoleMode DWORD ?	
+	InputRecord INPUT_RECORD <>
+	nRead       DWORD ?
+	coordX      WORD ?
+	coordY      WORD ?
+
 	;Error messages
 	badPrompt db "Valor incorrecto, intenta de nuevo!",0
 
@@ -159,6 +176,7 @@ include Macros.inc
 
 	; Aux
 	saltoLinea byte 13, 10, 0 ; \r\n
+	salir_cmd byte "$", 0
 
 
 .code
@@ -178,16 +196,42 @@ main proc
 	; - Cargar Partida
 	;	- Ambos se unenen con el id de la partida
 
-    call ReadChar
-    cmp al, "1"
+	read_click:
+	call getMouseClick
+
+	mov ah, 16
+	mov al, 28
+	mov bh, 19
+	mov bl, 22
+	call calcIfClickIn
+	cmp al, 1
 	je signup
-    cmp al, "2"
+
+	mov ah, 41
+	mov al, 53
+	mov bh, 19
+	mov bl, 22
+	call calcIfClickIn
+	cmp al, 1
 	je login
-	cmp al, "3"
+
+	mov ah, 66
+	mov al, 78
+	mov bh, 19
+	mov bl, 22
+	call calcIfClickIn
+	cmp al, 1
 	je newGame
-	cmp al, "4"
+
+	mov ah, 91
+	mov al, 103
+	mov bh, 19
+	mov bl, 22
+	call calcIfClickIn
+	cmp al, 1
 	je loadGame
-	jmp main
+
+	jmp read_click
 
 	no_sesion:
 		call clrscr
@@ -208,7 +252,7 @@ main proc
 	
 		call getMSeconds	; Generar un id
 		cmp eax, 10000000	; A veces genera un id de 7 digitos
-		jge saveId 
+		jge saveId
 		add eax, 10000000
 
 		saveId:
@@ -217,28 +261,46 @@ main proc
 		; Subirlo a la base de datos
 		lea ebx, create_i
 		call UploadGameId
+		jmp wait_for_confirm
 
-		mWrite "El id de la nueva partida es: "
-		mov eax, gameId
-		call writeInt
-		call Crlf
-		mWrite "Compartelo con el otro jugador para que pueda unirse"
-
-		call Crlf
-		mWrite "Presiona <Enter> para entrar a la partida o <Esc> para volver a la pantalla inicial"
-		call readChar
-		cmp al, 13
-		je wait_for_confirm
-		cmp al, 27
-		je main
+		create_new_game_error:
+			call clrscr
+			mGotoxy 0, 0
+			mWrite "Ocurrio un error inseperado al crear una nueva partida con el id: "
+			movzx eax, playerId
+			call writeInt
+			call crlf
+			mWrite "Por favor intentelo de nuevo..."
+			mov eax, 2000
+			call delay
+		jmp main
 
 		wait_for_confirm:
 			mov eax, 2000
 			call delay
 			call ReadDataFile
 			mov al, buffer
+			cmp al, "0"
+			je create_new_game_error
 			cmp al, "1"
 		jne wait_for_confirm
+
+		create_new_game_success:
+			call clrscr
+			mGotoxy 0, 0
+			mWrite "El id de la nueva partida es: "
+			mov eax, gameId
+			call writeInt
+			call Crlf
+			mWrite "Compartelo con el otro jugador para que pueda unirse"
+
+			call Crlf
+			mWrite "Presiona <Enter> para entrar a la partida o <Esc> para volver a la pantalla inicial"
+			call readChar
+			cmp al, 27
+			je main
+			cmp al, 13
+		jne create_new_game_success
 
 		call clearBuffer
 		lea edx, playing_i
@@ -514,7 +576,13 @@ menu proc
 			call clearColumn
 			jmp initMenu
 	endMenu:
-	ret
+	mov esi, offset salir_cmd
+	mov edi, offset buffer
+	call writeToEndOfBuffer
+	call writeFileHeader
+	call clearBuffer
+	call restartChessBoard
+	jmp main
 menu endp
 
 waitForOpponent proc
@@ -663,7 +731,7 @@ writeFileHeader proc
 	exit
 writeFileHeader endp
 
-writeDataFile proc
+writeLastMove proc
 	call readDataFile
 	lea edx, fileName
 	call CreateOutputFile
@@ -705,7 +773,7 @@ writeDataFile proc
 
 	fileError:
 	ret
-writeDataFile endp
+writeLastMove endp
 
 clearDataFile proc
 
@@ -1288,7 +1356,7 @@ movePieceProcess proc
 			mov chessBoard[edx], bl
 
 		; Escribir la jugada en el archivo
-		call writeDataFile
+		call writeLastMove
 
 		call printInitialBoard
 		call printSidebar
@@ -2198,6 +2266,7 @@ savePlayerId proc
 
     mov eax, 0                        ; Limpiar EAX (para acumular el resultado)
     mov ecx, 0                        ; Limpiar ECX (contador de dígitos)
+	mov playerId, 0
     mov edi, offset playerId           ; EDI apunta a playerId
 
 	ConvertLoop:
@@ -2226,5 +2295,112 @@ savePlayerId proc
 	EndConvert:
 		ret
 savePlayerId endp
+
+restartChessBoard proc
+	mov edi, offset chessBoard
+	mov esi, offset chessBoardStatic
+
+	mov ecx, 64
+	_loop:
+		mov al, [esi]
+		mov byte ptr [edi], al
+		inc esi
+		inc edi
+	loop _loop
+
+	ret
+restartChessBoard endp
+
+getMouseClick PROC 
+    invoke GetStdHandle, STD_INPUT_HANDLE
+    mov hStdIn, eax
+
+    invoke GetConsoleMode, hStdIn, ADDR ConsoleMode
+    mov eax, 0090h ; ENABLE_MOUSE_INPUT | DISABLE_QUICK_EDIT_MODE | ENABLE_EXTENDED_FLAGS
+    invoke SetConsoleMode, hStdIn, eax
+
+    ; Repetir hasta que se detecte un clic
+    .WHILE TRUE
+        invoke ReadConsoleInput, hStdIn, ADDR InputRecord, 1, ADDR nRead
+
+        ; Verificar si es un evento de mouse
+        movzx eax, InputRecord.EventType
+        cmp eax, MOUSE_EVENT
+        jne no_mouse_event
+
+        ; Verificar si el botón izquierdo del mouse fue presionado
+        test InputRecord.Event.MouseEvent.dwButtonState, 1
+        jz no_mouse_event
+
+        ; Verificar que no sea un evento de movimiento del mouse sin clic
+        test InputRecord.Event.MouseEvent.dwEventFlags, 1
+        jnz no_mouse_event
+
+        ; Guardar las coordenadas del clic
+        mov ax, InputRecord.Event.MouseEvent.dwMousePosition.X
+        mov coordX, ax
+        mov ax, InputRecord.Event.MouseEvent.dwMousePosition.Y
+        mov coordY, ax
+
+        ; Salir del bucle una vez que se haya detectado un clic válido
+        jmp done
+
+    no_mouse_event:
+    .ENDW
+
+done:
+    ; Restaurar el modo de la consola
+    mov eax, ConsoleMode
+    invoke SetConsoleMode, hStdIn, eax
+    ret
+
+getMouseClick endP
+
+calcIfClickIn proc
+	; Args:
+	; - ah: izq
+	; - al: der
+	; - bh: arriba 
+	; - bl: abajo
+	; - coordX: click
+	; - coordY: click
+	; Return:
+	; - eax: 0 o 1
+	Local areaLeft:byte
+	Local areaRight:byte
+	Local areaTop:byte
+	Local areaBottom:byte
+
+	mov areaLeft, ah
+	mov areaRight, al
+	mov areaTop, bh
+	mov areaBottom, bl
+
+	; Verificar si X está entre left y right
+    mov ax, coordX
+    cmp al, areaLeft
+    jl outside    ; Si X < left, está fuera
+
+    cmp al, areaRight
+    jg outside    ; Si X > right, está fuera
+
+    ; Verificar si Y está entre top y bottom
+    mov ax, coordY
+    cmp al, areaTop
+    jl outside    ; Si Y < top, está fuera
+
+    cmp al, areaBottom
+    jg outside    ; Si Y > bottom, está fuera
+
+    ; Si todas las comparaciones pasan, el clic está dentro del área
+    mov eax, 1  ; Está dentro
+    ret
+
+	outside:
+		mov eax, 0  ; Está fuera
+		ret
+
+calcIfClickIn endp
+
 
 end main
