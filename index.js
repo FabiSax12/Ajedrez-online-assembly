@@ -332,7 +332,7 @@ function dbPayloadHandler(payload, watcher) {
   ignoreFileChange = true;
 
   try {
-    appendFileSync("data.txt", + "\n" + fileLine + "\r\n");
+    appendFileSync("data.txt", fileLine + "\r\n");
   } catch (e) {
     dbPayloadHandler(payload)
     return;
