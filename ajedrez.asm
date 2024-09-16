@@ -1375,6 +1375,27 @@ movePieceProcess proc
 	ret
 movePieceProcess endp
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;VALIDACION DE REINA;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+validateQueenMove proc
+    ; Primero, intentamos validar el movimiento como una torre
+    call validateRookMove
+    cmp al, 1                ; Si es un movimiento válido de torre
+    je validMoveQueen         ; Movimiento de reina válido
+
+    ; Si no es válido como torre, intentamos validarlo como alfil
+    call validateBishopMove
+    cmp al, 1                ; Si es un movimiento válido de alfil
+    je validMoveQueen         ; Movimiento de reina válido
+
+    ; Si no es válido ni como torre ni como alfil, es inválido
+    mov al, 0
+    ret
+
+	validMoveQueen:
+		mov al, 1                ; Movimiento de reina válido
+		ret
+
+validateQueenMove endp
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;VALIDACION DE TORRE;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 validateRookMove proc
     xor eax, eax              ; Limpiar el registro eax
