@@ -1223,6 +1223,12 @@ movePieceProcess proc
 		; Verificar si es un peón y validar su movimiento
 		cmp al, playerPieces[0]; Pregunta si la pieza seleccionada es igual a un peon
 		je callPawnValidation
+		;cmp al, playerPieces[1]; Pregunta si la pieza seleccionada es igual a una torre
+		;je callRookValidation
+		;cmp al, playerPieces[2]; Pregunta si la pieza seleccionada es igual a un caballo
+		;je callKnightValidation
+		cmp al, playerPieces[3]; Pregunta si la pieza seleccionada es igual a un alfil
+		je callBishopValidation
 		; Falta agregar validaciones de otras piezas (torres, caballos, etc.)
 		jmp continueMove
 
@@ -1231,6 +1237,25 @@ movePieceProcess proc
 			call validatePawnMove ; Llamada al procedimiento de validación
 			cmp al, 0             ; Validación fallida?
 			je invalidMove        ; Si no es válido, regresar a entrada de movimiento
+			jmp continueMove
+		callRookValidation:
+			; Configurar parámetros para validar el movimiento de la torre
+			;call validateRookMove ; Llamada al procedimiento de validación
+			cmp al, 0             ; Validación fallida?
+			je invalidMove        ; Si no es válido, regresar a entrada de movimiento
+			jmp continueMove
+		callKnightValidation:
+		; Configurar parámetros para validar el movimiento del caballo
+			;call validateKnightMove ; Llamada al procedimiento de validación
+			cmp al, 0             ; Validación fallida?
+			je invalidMove        ; Si no es válido, regresar a entrada de movimiento
+			jmp continueMove
+		callBishopValidation:
+			; Configurar parámetros para validar el movimiento del alfil
+			call validateBishopMove ; Llamada al procedimiento de validación
+			cmp al, 0             ; Validación fallida?
+			je invalidMove        ; Si no es válido, regresar a entrada de movimiento
+			jmp continueMove
 		;---
 		continueMove:
 			call writeChar
@@ -1282,6 +1307,202 @@ movePieceProcess proc
 
 	ret
 movePieceProcess endp
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;VALIDACION DEL ALFIL;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+validateBishopMove proc
+    xor eax, eax            ; Limpiar el registro eax
+
+    ; Obtener la diferencia de las filas y las columnas
+    mov al, fromCell[1]      ; Fila de la casilla de origen
+    sub al, toCell[1]        ; Restar la fila de destino
+    call absolute            ; Obtener el valor absoluto de la diferencia de las filas
+    mov bl, al               ; Guardar la diferencia de las filas en bl
+
+    mov al, fromCell[0]      ; Columna de la casilla de origen
+    sub al, toCell[0]        ; Restar la columna de destino
+    call absolute            ; Obtener el valor absoluto de la diferencia de las columnas
+    cmp bl, al               ; Comparar la diferencia de filas y columnas
+    jne invalidMoveBishop    ; Si no son iguales, no es un movimiento diagonal válido
+
+    ; Si es un movimiento diagonal, verificar si el camino está libre
+    call checkBishopPath     ; Verificar que no haya obstrucciones en el camino
+    cmp al, 0                ; Si hay obstrucciones
+    je invalidMoveBishop     ; Movimiento inválido si hay obstrucciones
+
+    ; Verificar si es una captura válida
+    mov ah, toCell[0]
+    mov al, toCell[1]
+    sub al, 30h
+    call calcCellIndex       ; Obtener el índice de la casilla de destino
+    movzx edi, selectedCellIndex
+    mov al, chessBoard[edi]  ; Obtener el contenido de la casilla de destino
+
+    cmp al, '*'              ; Si la casilla de destino está vacía, es un movimiento válido
+    je validMoveBishop
+    ; Verificar si es una pieza enemiga para capturar
+    cmp turn, 0              ; Si es el turno de las negras
+    je checkCaptureWhitePiece
+    jmp checkCaptureBlackPiece
+
+checkCaptureWhitePiece:
+    cmp al, 'a'              ; Verificar si la pieza es minúscula (blanca)
+    jb invalidMoveBishop
+    cmp al, 'z'
+    ja invalidMoveBishop
+    jmp validMoveBishop      ; Si es una pieza blanca, es una captura válida
+
+checkCaptureBlackPiece:
+    cmp al, 'A'              ; Verificar si la pieza es mayúscula (negra)
+    jb invalidMoveBishop
+    cmp al, 'Z'
+    ja invalidMoveBishop
+    jmp validMoveBishop      ; Si es una pieza negra, es una captura válida
+
+invalidMoveBishop:
+    mov al, 0                ; Movimiento inválido
+    ret
+
+validMoveBishop:
+    mov al, 1                ; Movimiento válido
+    ret
+
+validateBishopMove endp
+
+checkBishopPath proc
+    ; Inicializar las posiciones de origen y destino
+    mov al, fromCell[1]      ; Fila de la casilla de origen
+    mov ah, fromCell[0]      ; Columna de la casilla de origen
+    mov bl, toCell[1]        ; Fila de la casilla de destino
+    mov bh, toCell[0]        ; Columna de la casilla de destino
+
+    ; Determinar la dirección del movimiento (filas y columnas)
+    mov dl, bl               ; Diferencia de las filas
+    sub dl, al               ; dl = fila destino - fila origen
+
+    mov dh, bh               ; Diferencia de las columnas
+    sub dh, ah               ; dh = columna destino - columna origen
+
+    ; Identificar la dirección del movimiento y normalizar los incrementos
+    ; DL: Diferencia en las filas, DH: Diferencia en las columnas
+    cmp dl, 0
+    jl movingUp              ; Si dl < 0, el alfil se mueve hacia arriba
+    cmp dh, 0
+    jl movingLeft            ; Si dh < 0, el alfil se mueve hacia la izquierda
+    jmp moveDiagonalDownRight ; Si ambos dl > 0 y dh > 0, diagonal hacia abajo y a la derecha
+
+movingUp:
+    neg dl                   ; Convertir la diferencia de filas en positiva
+    cmp dh, 0
+    jl moveDiagonalUpLeft     ; Si dh < 0, diagonal hacia arriba y a la izquierda
+    jmp moveDiagonalUpRight   ; Si dh > 0, diagonal hacia arriba y a la derecha
+
+movingLeft:
+    neg dh                   ; Convertir la diferencia de columnas en positiva
+    jmp moveDiagonalDownLeft  ; Diagonal hacia abajo y a la izquierda
+
+; Movimiento diagonal hacia abajo y a la derecha
+moveDiagonalDownRight:
+    ; Iterar a través de las casillas entre origen y destino
+    movzx cx, dl               ; Número de pasos a recorrer (igual en filas y columnas)
+checkPathLoopDownRight:
+    dec cx
+    jz checkPathEnd          ; Si hemos llegado al destino, terminar
+
+    inc al                   ; Avanzar una fila hacia abajo
+    inc ah                   ; Avanzar una columna hacia la derecha
+
+    ; Obtener el contenido de la casilla intermedia
+    push ax
+	sub al,30h
+    call calcCellIndex
+    movzx edi, selectedCellIndex
+    mov bl, chessBoard[edi]  ; Obtener el contenido de la casilla
+    pop ax
+
+    cmp bl, '*'              ; Si la casilla no está vacía, hay una obstrucción
+    jne obstructionFound
+
+    jmp checkPathLoopDownRight
+
+; Movimiento diagonal hacia abajo y a la izquierda
+moveDiagonalDownLeft:
+    movzx cx, dl
+checkPathLoopDownLeft:
+    dec cx
+    jz checkPathEnd
+
+    inc al                   ; Avanzar una fila hacia abajo
+    dec ah                   ; Avanzar una columna hacia la izquierda
+
+    ; Obtener el contenido de la casilla intermedia
+    push ax
+	sub al,30h
+    call calcCellIndex
+    movzx edi, selectedCellIndex
+    mov bl, chessBoard[edi]
+    pop ax
+
+    cmp bl, '*'              ; Si la casilla no está vacía, hay una obstrucción
+    jne obstructionFound
+
+    jmp checkPathLoopDownLeft
+
+; Movimiento diagonal hacia arriba y a la derecha
+moveDiagonalUpRight:
+    movzx cx, dl
+checkPathLoopUpRight:
+    dec cx
+    jz checkPathEnd
+
+    dec al                   ; Avanzar una fila hacia arriba
+    inc ah                   ; Avanzar una columna hacia la derecha
+
+    ; Obtener el contenido de la casilla intermedia
+    push ax
+	sub al,30h
+    call calcCellIndex
+    movzx edi, selectedCellIndex
+    mov bl, chessBoard[edi]
+    pop ax
+
+    cmp bl, '*'              ; Si la casilla no está vacía, hay una obstrucción
+    jne obstructionFound
+
+    jmp checkPathLoopUpRight
+
+; Movimiento diagonal hacia arriba y a la izquierda
+moveDiagonalUpLeft:
+    movzx cx, dl
+checkPathLoopUpLeft:
+    dec cx
+    jz checkPathEnd
+
+    dec al                   ; Avanzar una fila hacia arriba
+    dec ah                   ; Avanzar una columna hacia la izquierda
+
+    ; Obtener el contenido de la casilla intermedia
+    push ax
+	sub al,30h
+    call calcCellIndex
+    movzx edi, selectedCellIndex
+    mov bl, chessBoard[edi]
+    pop ax
+
+    cmp bl, '*'              ; Si la casilla no está vacía, hay una obstrucción
+    jne obstructionFound
+
+    jmp checkPathLoopUpLeft
+
+obstructionFound:
+    mov al, 0                ; Camino bloqueado
+    ret
+
+checkPathEnd:
+    mov al, 1                ; Camino libre
+    ret
+
+checkBishopPath endp
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;FIN VALIDACION DEL ALFIL;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 validatePawnMove proc
 	cmp turn, 0			;SI el player id es 0, entonces este juega con las piezas negras(en mayúscula)
