@@ -2329,17 +2329,17 @@ getMouseClick PROC
         jne no_mouse_event
 
         ; Verificar si el botón izquierdo del mouse fue presionado
-        test InputRecord.Event.MouseEvent.dwButtonState, 1
+        test InputRecord.Event.dwButtonState, 1
         jz no_mouse_event
 
         ; Verificar que no sea un evento de movimiento del mouse sin clic
-        test InputRecord.Event.MouseEvent.dwEventFlags, 1
+        test InputRecord.Event.dwEventFlags, 1
         jnz no_mouse_event
 
         ; Guardar las coordenadas del clic
-        mov ax, InputRecord.Event.MouseEvent.dwMousePosition.X
+        mov ax, InputRecord.Event.dwMousePosition.X
         mov coordX, ax
-        mov ax, InputRecord.Event.MouseEvent.dwMousePosition.Y
+        mov ax, InputRecord.Event.dwMousePosition.Y
         mov coordY, ax
 
         ; Salir del bucle una vez que se haya detectado un clic válido
