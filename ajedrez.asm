@@ -1225,8 +1225,8 @@ movePieceProcess proc
 		je callPawnValidation
 		;cmp al, playerPieces[1]; Pregunta si la pieza seleccionada es igual a una torre
 		;je callRookValidation
-		;cmp al, playerPieces[2]; Pregunta si la pieza seleccionada es igual a un caballo
-		;je callKnightValidation
+		cmp al, playerPieces[2]; Pregunta si la pieza seleccionada es igual a un caballo
+		je callKnightValidation
 		cmp al, playerPieces[3]; Pregunta si la pieza seleccionada es igual a un alfil
 		je callBishopValidation
 		; Falta agregar validaciones de otras piezas (torres, caballos, etc.)
@@ -1246,7 +1246,7 @@ movePieceProcess proc
 			jmp continueMove
 		callKnightValidation:
 		; Configurar parámetros para validar el movimiento del caballo
-			;call validateKnightMove ; Llamada al procedimiento de validación
+			call validateKnightMove ; Llamada al procedimiento de validación
 			cmp al, 0             ; Validación fallida?
 			je invalidMove        ; Si no es válido, regresar a entrada de movimiento
 			jmp continueMove
@@ -1307,6 +1307,75 @@ movePieceProcess proc
 
 	ret
 movePieceProcess endp
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;VALIDACION DEL CABALLO;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+validateKnightMove proc
+    xor eax, eax           ; Limpiar el registro eax
+
+    ; Obtener la diferencia de las filas y las columnas
+    mov al, fromCell[1]     ; Fila de la casilla de origen
+    sub al, toCell[1]       ; Restar la fila de destino
+    call absolute           ; Obtener el valor absoluto de la diferencia de las filas
+    mov bl, al              ; Guardar la diferencia de las filas en bl
+
+    mov al, fromCell[0]     ; Columna de la casilla de origen
+    sub al, toCell[0]       ; Restar la columna de destino
+    call absolute           ; Obtener el valor absoluto de la diferencia de las columnas
+    mov bh, al              ; Guardar la diferencia de las columnas en bh
+
+    ; Verificar que el movimiento sea en forma de "L"
+    cmp bl, 2               ; El movimiento debe ser de 2 casillas en una dirección...
+    je checkLShapePart2
+    cmp bl, 1               ; ...y 1 casilla en la otra dirección
+    jne invalidMoveKnight
+
+checkLShapePart2:
+    cmp bh, 1
+    je validMoveKnight
+    cmp bh, 2
+    je validMoveKnight
+
+invalidMoveKnight:
+    mov al, 0               ; Movimiento inválido
+    ret
+
+validMoveKnight:
+    ; Verificar si la casilla de destino contiene una pieza enemiga o está vacía
+    mov ah, toCell[0]
+    mov al, toCell[1]
+    sub al, 30h
+    call calcCellIndex      ; Obtener el índice de la casilla de destino
+    movzx edi, selectedCellIndex
+    mov al, chessBoard[edi] ; Obtener el contenido de la casilla de destino
+
+    cmp al, '*'             ; Si la casilla de destino está vacía
+    je moveIsValid
+
+    ; Verificar si es una captura válida
+    cmp turn, 0             ; Si es el turno de las negras
+    je checkCaptureWhitePieceKnight
+    jmp checkCaptureBlackPieceKnight
+
+checkCaptureWhitePieceKnight:
+    cmp al, 'a'             ; Verificar si la pieza es minúscula (blanca)
+    jb invalidMoveKnight
+    cmp al, 'z'
+    ja invalidMoveKnight
+    jmp moveIsValid         ; Si es una pieza blanca, es una captura válida
+
+checkCaptureBlackPieceKnight:
+    cmp al, 'A'             ; Verificar si la pieza es mayúscula (negra)
+    jb invalidMoveKnight
+    cmp al, 'Z'
+    ja invalidMoveKnight
+    jmp moveIsValid         ; Si es una pieza negra, es una captura válida
+
+moveIsValid:
+    mov al, 1               ; Movimiento válido
+    ret
+
+validateKnightMove endp
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;VALIDACION DEL ALFIL;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 validateBishopMove proc
@@ -1502,7 +1571,8 @@ checkPathEnd:
     ret
 
 checkBishopPath endp
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;FIN VALIDACION DEL ALFIL;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;VALIDACION DEL PEON;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 validatePawnMove proc
 	cmp turn, 0			;SI el player id es 0, entonces este juega con las piezas negras(en mayúscula)
