@@ -1460,12 +1460,15 @@ checkRookHorizontalPath proc
 
 moveRight:
     ; Moverse a la derecha (incrementar la columna)
-    mov ch, ah                 ; Número de columnas hasta el destino
-    sub ch, al                 ; cx = toCell[0] - fromCell[0]
-    dec ch                     ; No necesitamos verificar la casilla de destino
+	xor ecx, ecx
+    mov cl, ah                 ; Número de columnas hasta el destino
+    sub cl, al                 ; cx = toCell[0] - fromCell[0]
+    dec cl                     ; No necesitamos verificar la casilla de destino
+	mov ah, fromCell
+	mov al, fromCell[1]
 
 checkPathLoopRight:
-    inc al                     ; Avanzar una columna
+    inc ah                     ; Avanzar una columna
     push ax
 	sub al, 30h
     call calcCellIndex
@@ -1482,13 +1485,16 @@ checkPathLoopRight:
     ret
 
 moveLeft:
-    ; Moverse a la izquierda (decrementar la columna)
-    mov ch, al                 ; Número de columnas hasta el destino
-    sub ch, ah                 ; cx = fromCell[0] - toCell[0]
-    dec ch                     ; No necesitamos verificar la casilla de destino
+    ; Moverse hacia arriba (decrementar la fila)
+	xor ecx, ecx
+    mov cl, al                 ; Número de filas hasta el destino
+    sub cl, ah                 ; cx = fromCell[1] - toCell[1]
+    dec cl                     ; No necesitamos verificar la casilla de destino
+	mov ah, fromCell
+	mov al, fromCell[1]
 
 checkPathLoopLeft:
-    dec al                     ; Retroceder una columna
+    dec ah                     ; Retroceder una columna
     push ax
 	sub al, 30h
     call calcCellIndex
@@ -1521,9 +1527,11 @@ checkRookVerticalPath proc
 
 moveDown:
     ; Moverse hacia abajo (incrementar la fila)
-    mov ch, ah                 ; Número de filas hasta el destino
-    sub ch, al                 ; cx = toCell[1] - fromCell[1]
-    dec ch                     ; No necesitamos verificar la casilla de destino
+	xor ecx, ecx
+    mov cl, ah                 ; Número de filas hasta el destino
+    sub cl, al                 ; cx = toCell[1] - fromCell[1]
+    dec cl                     ; No necesitamos verificar la casilla de destino
+	mov ah, toCell
 
 checkPathLoopDown:
     inc al                     ; Avanzar una fila
@@ -1544,9 +1552,12 @@ checkPathLoopDown:
 
 moveUp:
     ; Moverse hacia arriba (decrementar la fila)
-    mov ch, al                 ; Número de filas hasta el destino
-    sub ch, ah                 ; cx = fromCell[1] - toCell[1]
-    dec ch                     ; No necesitamos verificar la casilla de destino
+	xor ecx, ecx
+    mov cl, al                 ; Número de filas hasta el destino
+    sub cl, ah                 ; cx = fromCell[1] - toCell[1]
+    dec cl                     ; No necesitamos verificar la casilla de destino
+	mov ah, fromCell
+	mov al, fromCell[1]
 
 checkPathLoopUp:
     dec al                     ; Retroceder una fila
