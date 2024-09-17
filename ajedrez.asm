@@ -1288,7 +1288,7 @@ movePieceProcess proc
 		cmp al,"*"
 		je emptyCell
 		;---	
-
+		;playerPieces db "prnbqk"
 		; Verificar si es un peón y validar su movimiento
 		cmp al, playerPieces[0]; Pregunta si la pieza seleccionada es igual a un peon
 		je callPawnValidation
@@ -1578,8 +1578,9 @@ checkPathLoopRight:
 
     cmp bl, '*'                 ; Si la casilla no está vacía
     jne obstructionFound        ; Camino bloqueado
-    dec cx
+    
     jnz checkPathLoopRight
+	dec cx
 
     mov al, 1                   ; Camino libre
     ret
@@ -1604,9 +1605,9 @@ checkPathLoopLeft:
 
     cmp bl, '*'                 ; Si la casilla no está vacía
     jne obstructionFound        ; Camino bloqueado
-    dec cx
+    
     jnz checkPathLoopLeft
-
+	dec cx
     mov al, 1                   ; Camino libre
     ret
 
@@ -1644,9 +1645,9 @@ checkPathLoopDown:
 
     cmp bl, '*'                 ; Si la casilla no está vacía
     jne obstructionFound        ; Camino bloqueado
-    dec cx
+    
     jnz checkPathLoopDown
-
+	dec cx
     mov al, 1                   ; Camino libre
     ret
 
@@ -1670,9 +1671,9 @@ checkPathLoopUp:
 
     cmp bl, '*'                 ; Si la casilla no está vacía
     jne obstructionFound        ; Camino bloqueado
-    dec cx
+   
     jnz checkPathLoopUp
-
+	dec cx
     mov al, 1                   ; Camino libre
     ret
 
