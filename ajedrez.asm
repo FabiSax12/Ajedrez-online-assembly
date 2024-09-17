@@ -177,6 +177,7 @@ include Macros.inc
 	; Aux
 	saltoLinea byte 13, 10, 0 ; \r\n
 	salir_cmd byte "$", 0
+	win_cmd byte "#", 0
 
 
 .code
@@ -1297,9 +1298,9 @@ movePieceProcess proc
 		je callKnightValidation
 		cmp al, playerPieces[3]; Pregunta si la pieza seleccionada es igual a un alfil
 		je callBishopValidation
-		cmp al, playerPieces[4]; Pregunta si la pieza seleccionada es igual a un rey
+		cmp al, playerPieces[5]; Pregunta si la pieza seleccionada es igual a un rey
 		je callKingValidation
-		cmp al, playerPieces[5]; Pregunta si la pieza seleccionada es igual a una reina
+		cmp al, playerPieces[4]; Pregunta si la pieza seleccionada es igual a una reina
 		je callQueenValidation
 		jmp continueMove
 
@@ -1446,6 +1447,7 @@ validateKingMove proc
 		ret
 
 	validMoveKing:
+		call validateCheckMate
 		mov al, 1                    ; Movimiento válido
 		ret
 
@@ -1467,6 +1469,7 @@ validateQueenMove proc
     ret
 
 	validMoveQueen:
+		call validateCheckMate
 		mov al, 1                ; Movimiento de reina válido
 		ret
 
@@ -1541,6 +1544,7 @@ invalidMoveRook:
     ret
 
 validMoveRook:
+	call validateCheckMate
     mov al, 1                   ; Movimiento válido
     ret
 
@@ -1746,6 +1750,7 @@ checkCaptureBlackPieceKnight:
     jmp moveIsValid         ; Si es una pieza negra, es una captura válida
 
 moveIsValid:
+	call validateCheckMate
     mov al, 1               ; Movimiento válido
     ret
 
@@ -1807,6 +1812,7 @@ invalidMoveBishop:
     ret
 
 validMoveBishop:
+	call validateCheckMate
     mov al, 1                ; Movimiento válido
     ret
 
@@ -2149,6 +2155,7 @@ check_white_forward_move:
 		mov al, 0
 
 	endPawnValidation:
+		call validateCheckMate
 		ret
 validatePawnMove endp
 
@@ -2508,6 +2515,67 @@ calcIfClickIn proc
 		ret
 
 calcIfClickIn endp
+
+validateCheckMate proc
+
+	mov ah, toCell
+	mov al, toCell[1]
+	sub al, 30h
+	call calcCellIndex
+
+	movzx edi, selectedCellIndex
+	mov al, chessBoard[edi]
+
+	cmp turn, 0
+	je blackValidate
+	jmp whiteValidate
+
+	blackValidate:
+		cmp al, "k"
+		je winGame
+		ret
+
+	whiteValidate:
+		cmp al, "K"
+		je winGame
+		ret
+
+validateCheckMate endp
+
+winGame proc
+
+	call readDataFile
+	mov esi, offset win_cmd
+	mov edi, offset buffer
+	call writeToEndOfBuffer
+
+	mov eax, 60
+	call clearColumn
+
+	mGotoxy 60, 3
+	mWrite "Felicidades, has ganado la partida!!!"
+	mGotoxy 60, 5
+	mWrite "Vuelve a la pantalla inicial"
+	mGotoxy 60, 6
+	call waitmsg
+	jmp main
+
+winGame endp
+
+loseGame proc
+
+	mov eax, 60
+	call clearColumn
+
+	mGotoxy 60, 3
+	mWrite "El oponente ha capturado a tu REY... Has perdido la partida"
+	mGotoxy 60, 5
+	mWrite "Vuelve a la pantalla inicial"
+	mGotoxy 60, 6
+	call waitmsg
+	jmp main
+
+loseGame endp
 
 
 end main
